@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
-	<moduleName>Ebony Wolf Armor and Weapons</moduleName>
+	<moduleName>Nordic Ebony Armor and Weapons Replacer</moduleName>
 	<moduleImage path="fomod\images\header.png" showImage="true" showFade="true" height="-1" />
 
 	<!-- The meshes are the same whatever you pick below, so they install once. -->

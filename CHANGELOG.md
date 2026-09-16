@@ -1,4 +1,4 @@
-# Changelog - Ebony Wolf Armor and Weapons
+# Changelog - Nordic Ebony Armor and Weapons Replacer
 
 ## 1.0.0
 

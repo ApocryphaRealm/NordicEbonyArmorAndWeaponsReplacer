@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Assemble the FOMOD installer for Ebony Wolf Armor and Weapons.
+r"""Assemble the FOMOD installer for Nordic Ebony Armor and Weapons Replacer.
 
 WHAT THIS PACKAGES
     NordwarUA's wolf EBONY armour and weapons from Legacy of Ysgramor (Nexus 109963), moved onto
@@ -188,7 +188,7 @@ def main(out_root=None, test=False):
     if out_root is None:
         out_root = os.path.normpath(os.path.join(
             REPO, "..", "..", "7. current test builds",
-            "Ebony Wolf Armor and Weapons %s" % ver))
+            "Nordic Ebony Armor and Weapons Replacer %s" % ver))
     if os.path.isdir(out_root):
         shutil.rmtree(out_root)
     work = os.path.join(out_root, "_work")
@@ -219,6 +219,29 @@ def main(out_root=None, test=False):
 
     n_core = place(MAP_ARMOR, core) + place(MAP_WEAPONS, core)
     n_nofur = place(MAP_NOFUR, os.path.join(out_root, "10 Cuirass - No fur collar"))
+
+    # The worn armour again under our own folder, which is where the light plugin points vanilla's
+    # four ebony armour ADDON records. Both copies are wanted: the plugin governs the armour as it
+    # is worn, while ground models and the weapons - which have no addon record and name their
+    # meshes directly - still read the vanilla paths. Meshes are megabytes against a package of 4K
+    # textures, so the duplication is not worth engineering away.
+    n_ours = 0
+    for sex in ("m", "f"):
+        src = os.path.join(core, "meshes", "armor", "ebony", sex)
+        if not os.path.isdir(src):
+            continue
+        dest = os.path.join(core, "meshes", "NordicEbony", sex)
+        os.makedirs(dest, exist_ok=True)
+        for fn in os.listdir(src):
+            if fn.lower().endswith(".nif") and "gnd" not in fn.lower():
+                shutil.copy2(os.path.join(src, fn), os.path.join(dest, fn))
+                n_ours += 1
+
+    main_esl = os.path.join(REPO, "plugin", "Nordic Ebony Armor and Weapons Replacer.esl")
+    if not os.path.isfile(main_esl):
+        fail("the light plugin is missing - run tools/build-arma-esl.py first, or the worn armour "
+             "would keep pointing at vanilla's own meshes")
+    shutil.copy2(main_esl, core)
 
     # ---- textures, derived from the meshes rather than listed by hand
     wanted = set()
@@ -253,11 +276,11 @@ def main(out_root=None, test=False):
         n_tex[res] = found
 
     # ---- the optional plugin
-    esl = os.path.join(REPO, "plugin", "Ebony Wolf - Hide Unmatched Weapons.esp")
-    if os.path.isfile(esl):
+    hide_esl = os.path.join(REPO, "plugin", "Nordic Ebony - Hide Unmatched Weapons.esl")
+    if os.path.isfile(hide_esl):
         d = os.path.join(out_root, "20 Hide unmatched ebony weapons")
         os.makedirs(d, exist_ok=True)
-        shutil.copy2(esl, d)
+        shutil.copy2(hide_esl, d)
 
     # ---- fomod
     fomod = os.path.join(out_root, "fomod")
@@ -297,8 +320,10 @@ def main(out_root=None, test=False):
     print("built %s" % out_root)
     print("  version ............... %s" % ver)
     print("  meshes on vanilla paths %d, plus %d for the collarless cuirass" % (n_core, n_nofur))
+    print("  mirrored under ours ... %d" % n_ours)
+    print("  light plugin .......... %s" % os.path.basename(main_esl))
     print("  textures per resolution %d  (1K/2K/4K)" % n_tex["2K"])
-    print("  optional plugin ....... %s" % ("yes" if os.path.isfile(esl) else "NOT BUILT"))
+    print("  optional plugin ....... %s" % ("yes" if os.path.isfile(hide_esl) else "NOT BUILT"))
     print("  installer sources ..... %d, every one present" % len(sources))
     print("  files ................. %d" % total)
     return out_root
