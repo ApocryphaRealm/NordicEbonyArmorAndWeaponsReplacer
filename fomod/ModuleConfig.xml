@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+	<moduleName>Ebony Wolf Armor and Weapons</moduleName>
+	<moduleImage path="fomod\images\header.png" showImage="true" showFade="true" height="-1" />
+
+	<!-- The meshes are the same whatever you pick below, so they install once. -->
+	<requiredInstallFiles>
+		<folder source="00 Core" destination="" priority="0" />
+	</requiredInstallFiles>
+
+	<installSteps order="Explicit">
+		<installStep name="Texture resolution">
+			<optionalFileGroups order="Explicit">
+				<group name="Texture resolution" type="SelectExactlyOne">
+					<plugins order="Explicit">
+						<plugin name="2K - recommended">
+							<description>Xtudo's all-black textures at 2K. The sensible default: it is what the set was authored around and it costs about 90 MB of VRAM less than 4K for a difference you will not see on a cuirass.</description>
+							<files><folder source="02 Textures - 2K" destination="" priority="1" /></files>
+							<typeDescriptor><type name="Recommended" /></typeDescriptor>
+						</plugin>
+						<plugin name="4K">
+							<description>The same textures at 4K. Worth it if you take close screenshots; otherwise it is VRAM for nothing.</description>
+							<files><folder source="03 Textures - 4K" destination="" priority="1" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+						<plugin name="1K">
+							<description>The same textures at 1K, for a machine that is short of VRAM.</description>
+							<files><folder source="01 Textures - 1K" destination="" priority="1" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+
+		<installStep name="The cuirass">
+			<optionalFileGroups order="Explicit">
+				<group name="Fur collar" type="SelectExactlyOne">
+					<plugins order="Explicit">
+						<plugin name="With the fur collar">
+							<description>The cuirass as NordwarUA built it, with the fur mantle across the shoulders - black, from Xtudo's Full Collar Black.</description>
+							<image path="fomod\images\fur.png" />
+							<files />
+							<typeDescriptor><type name="Recommended" /></typeDescriptor>
+						</plugin>
+						<plugin name="Without the fur collar">
+							<description>NordwarUA's collarless version of the same cuirass. Nothing else changes.</description>
+							<image path="fomod\images\nofur.png" />
+							<files><folder source="10 Cuirass - No fur collar" destination="" priority="2" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+
+		<installStep name="The four weapons this cannot replace">
+			<optionalFileGroups order="Explicit">
+				<group name="Optional plugin" type="SelectAny">
+					<plugins order="Explicit">
+						<plugin name="Hide the ebony mace, warhammer, bow and arrows">
+							<description>There is no wolf ebony mace, warhammer, bow or arrow - NordwarUA never made one, so those four keep the game's own look and will not match the rest of your set.
+
+This optional light plugin takes them out of circulation: it removes them from the levelled lists they appear in and deletes their forging and tempering recipes, so a playthrough simply never offers you one. Anything already in your inventory stays.
+
+It edits 26 vanilla levelled lists, so let it load after any levelled-list overhaul, and leave it out if you would rather keep the four items and live with the mismatch.</description>
+							<files><folder source="20 Hide unmatched ebony weapons" destination="" priority="3" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+	</installSteps>
+</config>
