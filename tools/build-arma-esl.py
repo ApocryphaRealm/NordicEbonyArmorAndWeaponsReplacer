@@ -39,7 +39,7 @@ DLC_DIR = os.environ.get("SKYRIM_DLC", r"D:\modlists\Njordlinger\mods\Base Game 
 # master table, which is what makes the no-translation invariant hold.
 STANDARD = ["Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm"]
 
-PLUGIN_NAME = "Nordic Ebony Armor and Weapons Replacer.esl"
+PLUGIN_NAME = "Nordic Ebony Armor and Weapons Replacer.esp"
 AUTHOR = "ApocryphaRealm"
 DESCRIPTION = "Points vanilla's ebony armour addons at this mod's meshes."
 

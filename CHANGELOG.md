@@ -4,8 +4,11 @@
 
 First release.
 
-* NordwarUA's wolf ebony armour and weapons from Legacy of Ysgramor, moved onto the vanilla ebony
-  mesh paths so they replace the game's ebony gear. No plugin is needed for that.
+* NordwarUA's wolf ebony armour and weapons from Legacy of Ysgramor, replacing the game's ebony gear.
+* A light plugin - a `.esp` with the light flag, an ESPFE - overriding the four vanilla ebony armour
+  ADDON records so the worn armour points at this mod's own meshes and is settled by load order.
+  Four records, not the 430 that reference those meshes, because every pre-enchanted variant reaches
+  its worn model through the shared addon. Ground models and the weapons keep their vanilla paths.
 * Xtudo's all-black colourway throughout - Ebony Black for the plate, cloth and weapons, Full
   Collar Black for the fur - at a choice of 1K, 2K or 4K in the installer.
 * A choice of the fur-collared cuirass or NordwarUA's collarless one.

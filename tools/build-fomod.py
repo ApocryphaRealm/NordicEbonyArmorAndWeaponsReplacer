@@ -237,7 +237,7 @@ def main(out_root=None, test=False):
                 shutil.copy2(os.path.join(src, fn), os.path.join(dest, fn))
                 n_ours += 1
 
-    main_esl = os.path.join(REPO, "plugin", "Nordic Ebony Armor and Weapons Replacer.esl")
+    main_esl = os.path.join(REPO, "plugin", "Nordic Ebony Armor and Weapons Replacer.esp")
     if not os.path.isfile(main_esl):
         fail("the light plugin is missing - run tools/build-arma-esl.py first, or the worn armour "
              "would keep pointing at vanilla's own meshes")
