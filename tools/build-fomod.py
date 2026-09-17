@@ -7,7 +7,7 @@ WHAT THIS PACKAGES
     colourway from Nexus 111121 (Ebony Black + Full Collar Black).
 
     No plugin is needed for the replacement itself - it is a mesh swap. The one plugin this mod can
-    install is OPTIONAL and does something else entirely; see build-hide-esl.py.
+    install is OPTIONAL and does something else entirely; see build-hide-esp.py.
 
 WHY IT READS ARCHIVES INSTEAD OF SHIPPING FILES
     None of the art is ours. The repository carries none of it: this script opens the Nexus
@@ -276,11 +276,20 @@ def main(out_root=None, test=False):
         n_tex[res] = found
 
     # ---- the optional plugin
-    hide_esl = os.path.join(REPO, "plugin", "Nordic Ebony - Hide Unmatched Weapons.esl")
+    hide_esl = os.path.join(REPO, "plugin", "Nordic Ebony - Hide Unmatched Weapons.esp")
     if os.path.isfile(hide_esl):
         d = os.path.join(out_root, "20 Hide unmatched ebony weapons")
         os.makedirs(d, exist_ok=True)
         shutil.copy2(hide_esl, d)
+
+    # ---- body options: HIMBO (prebuilt male meshes + BodySlide) and CBBE 3BA (BodySlide), from the
+    # two Legacy of Ysgramor refits on Nexus (110002, 111209); see tools/loy-refits.py
+    r = subprocess.run([sys.executable, os.path.join(HERE, "loy-refits.py"), "--profile", "ebony",
+                        "--out", out_root, "--first", "30"], capture_output=True, text=True)
+    if r.returncode != 0:
+        fail("body options failed:\n" + (r.stdout + r.stderr).strip())
+    for line in r.stdout.strip().splitlines():
+        print(line)
 
     # ---- fomod
     fomod = os.path.join(out_root, "fomod")

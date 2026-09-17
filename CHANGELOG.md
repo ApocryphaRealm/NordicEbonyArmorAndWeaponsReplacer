@@ -19,7 +19,19 @@ First release.
   vanilla's slot word, so the head vanished under an open helm. `EbonyHelmetAA` now carries Legacy
   of Ysgramor's slot word (0x2802), declared in the build script as a slot override and checked by
   the verifier, which otherwise still refuses any difference beyond a model path.
-* An optional light plugin that hides the ebony mace, warhammer, bow and arrows, which have no
-  wolf counterpart and would otherwise be the only vanilla-looking pieces left in the set.
+* An optional light plugin, `Nordic Ebony - Hide Unmatched Weapons.esp`, that takes the ebony
+  mace, warhammer, bow and arrow - which have no wolf counterpart and would otherwise be the only
+  vanilla-looking pieces left in the set - out of the game's levelled lists and crafting. 113
+  levelled lists overridden (45 of them emptied outright, and dropped from the lists above them),
+  7 recipes gated behind a condition that is never true; every enchanted variant is caught because
+  the targets are found by model path. Nothing is deleted or made non-playable, so a weapon
+  already in a save keeps working. (Promised in the first draft of this changelog, but not built
+  until 2026-09-17 - the owner asked to "confirm that the missing ebony weapons are deactivated",
+  and they were not.)
 * The texture list is derived by reading the shipped meshes, not written by hand, which is how the
   ebony war axe's use of the STEEL axe diffuse was caught.
+* **HIMBO and CBBE 3BA options in the installer.** Prebuilt HIMBO male meshes (zeroed sliders,
+  collared and collarless cuirass) and HIMBO BodySlide files from Trexasle's Legacy of Ysgramor -
+  HIMBO Conversion (Nexus 110002), and CBBE 3BA BodySlide files from Xonek's Legacy of Ysgramor -
+  3BA Bodyslide (Nexus 111209), the Ebony variants, renamed to this mod's mesh names by
+  `tools/loy-refits.py`. The 3BA set is BodySlide-only: build it once.

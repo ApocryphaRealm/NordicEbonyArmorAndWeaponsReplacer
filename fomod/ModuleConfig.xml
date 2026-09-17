@@ -62,10 +62,39 @@
 						<plugin name="Hide the ebony mace, warhammer, bow and arrows">
 							<description>There is no wolf ebony mace, warhammer, bow or arrow - NordwarUA never made one, so those four keep the game's own look and will not match the rest of your set.
 
-This optional light plugin takes them out of circulation: it removes them from the levelled lists they appear in and deletes their forging and tempering recipes, so a playthrough simply never offers you one. Anything already in your inventory stays.
+This optional light plugin takes them out of circulation: it removes them and every enchanted variant of them from the levelled lists they appear in and puts their forging and tempering recipes behind a condition that is never true, so a playthrough simply never offers you one. Anything already in your inventory stays and still works.
 
-It edits 26 vanilla levelled lists, so let it load after any levelled-list overhaul, and leave it out if you would rather keep the four items and live with the mismatch.</description>
+It overrides 113 vanilla levelled lists and 7 recipes, so let it load after any levelled-list overhaul, and leave it out if you would rather keep the four items and live with the mismatch.</description>
 							<files><folder source="20 Hide unmatched ebony weapons" destination="" priority="3" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+
+		<installStep name="Body">
+			<optionalFileGroups order="Explicit">
+				<group name="Body support" type="SelectAny">
+					<plugins order="Explicit">
+						<plugin name="HIMBO - prebuilt male meshes">
+							<description>The cuirass, boots, gauntlets, helmet and first-person arms refitted to HIMBO (zeroed sliders, so OBody and its kind work out of the box), from Trexasle's Legacy of Ysgramor - HIMBO Conversion. Overrides the male meshes. Pick the collarless cuirass below as well if you chose it on the previous page.</description>
+							<files><folder source="30 HIMBO meshes" destination="" priority="4" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+						<plugin name="HIMBO - collarless cuirass">
+							<description>The HIMBO cuirass without the fur collar. Only with the option above, and only if you chose "Without the fur collar".</description>
+							<files><folder source="33 HIMBO meshes - no fur collar" destination="" priority="5" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+						<plugin name="HIMBO - BodySlide files">
+							<description>Slider sets and shape data to build the male set to your own HIMBO preset in BodySlide, under the group "Nordic Ebony - HIMBO"; the collared and collarless cuirass are separate sets that build to the same file.</description>
+							<files><folder source="31 BodySlide - HIMBO" destination="" priority="4" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+						<plugin name="CBBE 3BA - BodySlide files">
+							<description>Slider sets and shape data to build the female set to your CBBE 3BA preset in BodySlide (no physics), from Xonek's Legacy of Ysgramor - 3BA Bodyslide, under the group "Nordic Ebony - CBBE 3BA". Nothing is prebuilt: build them once in BodySlide.</description>
+							<files><folder source="32 BodySlide - CBBE 3BA" destination="" priority="4" /></files>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
 					</plugins>
