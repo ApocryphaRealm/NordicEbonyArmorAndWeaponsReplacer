@@ -51,6 +51,17 @@ REPATH = {
     "armor/ebony/f/": "NordicEbony/f/",
 }
 
+# Body-slot overrides, by ARMA FormID -> the new biped flags word of its BODT.
+#
+# Vanilla's ebony helmet is a CLOSED helm: its addon sits in slot 30 (Head) and the vanilla mesh
+# covers the whole head, so hiding the head underneath is invisible. NordwarUA's ebony wolf helm is
+# an OPEN helm - Legacy of Ysgramor gives its addon slots 31 (Hair), 41 (Long Hair) and 43 (Ears),
+# 0x2802 - and pointing a slot-30 addon at an open mesh hides the head and shows nothing in its
+# place. The owner, 2026-09-16: "ebony armor helmet caused invisible head". Same class as the
+# Dragon Blood helmet before it (Civil War Final Battle Equipment, earlier the same day).
+# The slot word is taken from the mesh's own mod, not invented here.
+SLOT_OVERRIDE = {0x0005B69A: 0x00002802}   # EbonyHelmetAA -> Legacy of Ysgramor's helmet slots
+
 ESL_FLAG = 0x00000200
 COMPRESSED = 0x00040000
 MODEL_SUBS = (b"MOD2", b"MOD3", b"MOD4", b"MOD5")
@@ -103,6 +114,8 @@ def read_arma(path):
                 continue
             flags = struct.unpack("<I", d[off+8:off+12])[0]
             fid = struct.unpack("<I", d[off+12:off+16])[0]
+            vcs = struct.unpack("<I", d[off+16:off+20])[0]
+            ver = struct.unpack("<H", d[off+20:off+22])[0]
             body = d[off+24:off+24+n]
             off += 24 + n
             if t != b"ARMA":
@@ -112,7 +125,7 @@ def read_arma(path):
                     body = zlib.decompress(body[4:])
                 except Exception:
                     continue
-            out[fid] = (body, masters)
+            out[fid] = (body, masters, vcs, ver)
     walk(24 + hs, len(d))
     return out
 
@@ -135,13 +148,18 @@ def repath(value):
     return None
 
 
-def rebuild(body, remapped):
-    """Rewrite the model subrecords in place, leaving every other byte exactly as it was."""
+def rebuild(body, remapped, slots=None):
+    """Rewrite the model subrecords in place, leaving every other byte exactly as it was - except
+    the biped flags word of BODT/BOD2 when a slot override is declared for this record."""
     out = bytearray()
     for sig, data in subrecords(body):
         if sig in remapped:
             new = remapped[sig].encode("latin-1") + b"\x00"
             out += sig + struct.pack("<H", len(new)) + new
+        elif slots is not None and sig in (b"BODT", b"BOD2"):
+            d = bytearray(data)
+            struct.pack_into("<I", d, 0, slots)
+            out += sig + struct.pack("<H", len(d)) + bytes(d)
         else:
             out += sig + struct.pack("<H", len(data)) + data
     return bytes(out)
@@ -154,16 +172,16 @@ def main(out_path=None):
         p = plugin_path(name)
         if p is None:
             continue
-        for fid, (body, masters) in read_arma(p).items():
+        for fid, (body, masters, vcs, ver) in read_arma(p).items():
             if any(repath(v) for v in model_paths(body).values()):
-                winners[fid] = (body, name, idx, masters)
+                winners[fid] = (body, name, idx, masters, vcs, ver)
     if not winners:
         fail("no vanilla ARMA record points at %s - the game data is not where this script thinks"
              % ", ".join(REPATH))
 
     # ---- the shortest master list that keeps every index meaning the same thing
     highest = 0
-    for fid, (body, name, idx, masters) in winners.items():
+    for fid, (body, name, idx, masters, vcs, ver) in winners.items():
         owner_idx = fid >> 24
         highest = max(highest, owner_idx)
         for sig, data in subrecords(body):
@@ -178,7 +196,7 @@ def main(out_path=None):
     masters_out = STANDARD[:highest + 1]
 
     # ---- the invariant, asserted rather than assumed
-    for fid, (body, name, idx, src_masters) in winners.items():
+    for fid, (body, name, idx, src_masters, vcs, ver) in winners.items():
         owner = src_masters[fid >> 24] if (fid >> 24) < len(src_masters) else name
         if masters_out[fid >> 24].lower() != owner.lower():
             fail("index %d means '%s' in %s but '%s' here - FormIDs would silently point at the "
@@ -189,15 +207,20 @@ def main(out_path=None):
     moved = 0
     report = []
     for fid in sorted(winners):
-        body, name, idx, _ = winners[fid]
+        body, name, idx, _, vcs, ver = winners[fid]
         remapped = {}
         for sig, value in model_paths(body).items():
             new = repath(value)
             if new:
                 remapped[sig] = new
                 moved += 1
-        new_body = rebuild(body, remapped)
-        records += b"ARMA" + struct.pack("<IIIII", len(new_body), 0, fid, 0, 44) + new_body
+        new_body = rebuild(body, remapped, SLOT_OVERRIDE.get(fid))
+        # Carry the record's OWN form version through. Stamping a fixed 44 told the engine to
+        # expect the newer 8-byte BOD2 where these records actually carry a 12-byte BODT, so every
+        # subrecord after it shifted and the game died resolving the model path. These records are
+        # form version 39-40. The timestamp/VCS word is preserved for the same reason: copy the
+        # header, change only what has to change.
+        records += (b"ARMA" + struct.pack("<IIIIHH", len(new_body), 0, fid, vcs, ver, 0) + new_body)
         report.append((fid, name, len(remapped)))
 
     grup = b"GRUP" + struct.pack("<I", len(records) + 24) + b"ARMA" + struct.pack("<iii", 0, 0, 0) + records
