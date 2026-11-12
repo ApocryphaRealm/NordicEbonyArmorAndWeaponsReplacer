@@ -65,3 +65,25 @@ The textures here sit at NordwarUA's own `textures\NordWar\Companions\` paths, b
 his meshes reference. If Legacy of Ysgramor is also installed, whichever of the two loads later
 decides the colour of BOTH sets. For someone who wanted the black colourway that is the point; it is
 still worth knowing before wondering why the Companions changed colour.
+
+## Permission to use Legacy of Ysgramor's assets (recorded 2026-11-12)
+
+The owner (2026-11-12): this mod "has permission for use since this is the mod its from" - and the same permission
+applies to both of our mods built from that source (Nordic Ebony Armor and Weapons Replacer and Nordic Skyforged Armor
+and Weapons). The permissions box on
+[Legacy of Ysgramor](https://www.nexusmods.com/skyrimspecialedition/mods/109963) (NordwarUA), read 2026-11-12, says:
+
+- Other user's assets: all the assets belong to the author or are free-to-use modder's resources.
+- **Modification permission: allowed** - "You are allowed to modify my files and release bug fixes or improve on the
+  features so long as you credit me as the original creator".
+- **Asset use permission: allowed** - "You are allowed to use the assets in this file without permission as long as you
+  credit me".
+- Conversion permission: allowed, with credit.
+- Upload permission: NOT allowed to upload the file to other sites - so this mod is posted on Nexus only, never on
+  another site.
+- Assets in mods that are being sold: NOT allowed - this mod is never sold or paywalled.
+- Assets in mods that earn Donation Points: allowed.
+
+Conditions we keep: credit NordwarUA as the original creator on the mod page and in this file, link back to Legacy of
+Ysgramor, post on Nexus only, and never sell it. The other sources named above (Xtudo's colourways, the HIMBO and 3BA
+conversions) keep their own credit lines and are checked against their own pages.
