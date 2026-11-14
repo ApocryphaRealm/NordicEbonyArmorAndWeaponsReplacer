@@ -1,0 +1,82 @@
+# Proof renders of the BUILT game NIFs with BACKFACE CULLING ON - the game draws one side of a triangle, and the design
+# sheets draw both, so a face wound the wrong way only shows here (past mistakes: Truly Nordic shield 1.0.0).
+# Each piece is imported from its game NIF (PyNifly), textured from the shipped diffuse atlases, and shot from the front,
+# the back and a three-quarter view; a back face renders as see-through.
+# Run: blender --background --factory-startup --python proof.py -- <meshes\weapons\ebony folder> <textures root> <out folder>
+import bpy, os, sys, math, addon_utils
+from mathutils import Vector, Matrix
+addon_utils.enable("io_scene_nifly", default_set=True)
+SRC, TEX, OUT = sys.argv[sys.argv.index("--") + 1:][:3]
+os.makedirs(OUT, exist_ok=True)
+PIECES = [("mace", "ebonymace.nif", None), ("warhammer", "ebonywarhammer.nif", None), ("bow", "ebonybowskinned.nif", None),
+          ("arrow", "ebonyarrowprojectile.nif", None), ("quiver", "ebonyarrow.nif", "ArrowQuiver"),
+          ("mace_1st", "1stpersonebonymace.nif", None)]
+
+def clear():
+    for o in list(bpy.data.objects): bpy.data.objects.remove(o)
+
+sc = bpy.context.scene
+sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = 24; sc.cycles.use_denoising = True
+sc.view_settings.view_transform = "Standard"; sc.render.film_transparent = False
+w = bpy.data.worlds.new("w"); sc.world = w; w.use_nodes = True; w.node_tree.nodes["Background"].inputs["Color"].default_value = (0.32, 0.33, 0.35, 1)
+w.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.0
+
+_mat = {}
+def material(dds):
+    if dds in _mat: return _mat[dds]
+    m = bpy.data.materials.new(os.path.basename(dds)); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
+    p = os.path.join(TEX, dds.replace("\\", os.sep))
+    if os.path.isfile(p):
+        t = nt.nodes.new("ShaderNodeTexImage"); t.image = bpy.data.images.load(p, check_existing=True); nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
+    else:
+        b.inputs["Base Color"].default_value = (1, 0, 1, 1)            # a missing texture shows magenta
+    b.inputs["Metallic"].default_value = 0.6; b.inputs["Roughness"].default_value = 0.4
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent"); geo = nt.nodes.new("ShaderNodeNewGeometry"); mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(geo.outputs["Backfacing"], mix.inputs["Fac"]); nt.links.new(b.outputs[0], mix.inputs[1]); nt.links.new(tr.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], nt.nodes["Material Output"].inputs["Surface"])
+    m.use_backface_culling = True; _mat[dds] = m; return m
+
+from io_scene_nifly.pyn.pynifly import NifFile
+def load(path, only_under=None):
+    clear()
+    nf = NifFile(path); tex = {}
+    for s in nf.shapes:
+        try: tex[s.name] = s.shader.textures.get("Diffuse", "")
+        except Exception: tex[s.name] = ""
+    bpy.ops.import_scene.pynifly(filepath=path, import_collisions=False)
+    objs = []
+    for o in bpy.data.objects:
+        if o.type != "MESH": continue
+        nm = o.name if o.name in tex else o.name.split(".")[0]
+        d = tex.get(nm, "")
+        if "blood" in (nm + d).lower() or not d.lower().startswith("textures\\nordwar"):
+            o.hide_render = True; continue
+        o.data.materials.clear(); o.data.materials.append(material(d)); objs.append(o)
+    for L, rot, e in (("key", (math.radians(40), math.radians(-35), 0), 3.0), ("rim", (math.radians(-55), math.radians(145), 0), 2.0), ("fill", (math.radians(60), math.radians(160), 0), 1.2)):
+        l = bpy.data.lights.new(L, "SUN"); l.energy = e; lo = bpy.data.objects.new(L, l); lo.rotation_euler = rot; sc.collection.objects.link(lo)
+    return objs
+
+def shoot(objs, png, yaw, pitch, W=700, H=1100):
+    dg = bpy.context.evaluated_depsgraph_get(); P = []
+    for o in objs:
+        e = o.evaluated_get(dg); me = e.to_mesh(); P += [e.matrix_world @ v.co for v in me.vertices]; e.to_mesh_clear()
+    yaw, pitch = math.radians(yaw), math.radians(pitch)
+    fwd = Vector((math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)))   # camera sits along +fwd
+    right = Vector((0, 1, 0)).cross(fwd).normalized(); up = fwd.cross(right)
+    xs = [p.dot(right) for p in P]; ys = [p.dot(up) for p in P]; zs = [p.dot(fwd) for p in P]
+    cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
+    cam = bpy.data.cameras.new("c"); cam.type = "ORTHO"; cam.clip_start = 1; cam.clip_end = 5000
+    w_, h_ = max(xs) - min(xs), max(ys) - min(ys)
+    cam.ortho_scale = 1.1 * (max(h_, w_ * H / W) if H >= W else max(w_, h_ * W / H))   # along the longer side
+    co = bpy.data.objects.new("c", cam); sc.collection.objects.link(co); sc.camera = co
+    co.location = right * cx + up * cy + fwd * (max(zs) + 300)
+    co.rotation_mode = "QUATERNION"; co.rotation_quaternion = Matrix((right, up, fwd)).transposed().to_quaternion()
+    sc.render.resolution_x, sc.render.resolution_y = W, H; sc.render.filepath = png
+    bpy.ops.render.render(write_still=True); bpy.data.objects.remove(co)
+
+for name, fn, _ in PIECES:
+    objs = load(os.path.join(SRC, fn))
+    print("PIECE", name, [o.name for o in objs])
+    for view, yaw, pitch in (("front", 0, 0), ("back", 180, 0), ("tq", 40, 20)):
+        shoot(objs, os.path.join(OUT, "%s_%s.png" % (name, view)), yaw, pitch)
+print("PROOF DONE")

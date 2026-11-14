@@ -6,8 +6,16 @@ WHAT THIS PACKAGES
     the vanilla ebony mesh paths so they replace the game's ebony gear, in Xtudo's all-black
     colourway from Nexus 111121 (Ebony Black + Full Collar Black).
 
-    No plugin is needed for the replacement itself - it is a mesh swap. The one plugin this mod can
-    install is OPTIONAL and does something else entirely; see build-hide-esp.py.
+    The armour's worn models go through the light plugin's four ADDON overrides (build-arma-esl.py);
+    the weapons are loose meshes at the vanilla paths. The four ebony weapons Legacy of Ysgramor has
+    no Wolf version of - mace, warhammer, bow, arrow (with the quiver) - are BUILT from the Wolf
+    weapons' own pieces by build-missing-weapons.py, which this script runs; first-person copies of
+    the Wolf weapons come from it too. (The optional "hide unmatched weapons" plugin, which took those
+    four out of the levelled lists and recipes, was retired in 1.1.0 before it was ever posted - build-hide-esp.py and
+    verify-hide-esp.py stay in git history.)
+
+    TEXTURES AT 2K ONLY (the owner, 2026-11-14): Xtudo's 2K downloads, installed with the core; the
+    build refuses any shipped DDS larger than 2048.
 
 WHY IT READS ARCHIVES INSTEAD OF SHIPPING FILES
     None of the art is ours. The repository carries none of it: this script opens the Nexus
@@ -30,6 +38,7 @@ Usage:  python tools/build-fomod.py [output folder]
 """
 import os
 import re
+import struct
 import shutil
 import subprocess
 import sys
@@ -64,19 +73,26 @@ def supersede(folder):
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, ".."))
-DOWNLOADS = os.environ.get("EWA_DOWNLOADS", r"D:\modlists\Njordlinger\downloads")
+def _mo2_downloads():
+    """the MO2 instance's own download_directory (EWA_MO2, default the Njordlinger instance)"""
+    ini = os.path.join(os.environ.get("EWA_MO2", r"D:\Modlists\Njordlinger"), "ModOrganizer.ini")
+    if os.path.isfile(ini):
+        m = re.search(r"^download_directory=(.*)$", open(ini, encoding="utf-8", errors="replace").read(), re.M)
+        if m:
+            return m.group(1).strip().replace("/", os.sep)
+    return r"D:\modlists\Njordlinger\downloads"
+
+
+DOWNLOADS = os.environ.get("EWA_DOWNLOADS") or _mo2_downloads()
 SEVENZIP = [r"C:\Program Files\7-Zip\7z.exe", r"C:\Program Files (x86)\7-Zip\7z.exe", "7z"]
 
 # Source archives, by a fragment of their Nexus file name.
 A_BASE = "Main Archive SE-109963"                      # NordwarUA - meshes, normals, masks
 A_FURFIX = "Patch Fur Lighting Bug-109963"             # NordwarUA - corrected FurCollar_n
 A_COLLAR = "Color - Full Collar Black-111121"          # Xtudo - the black fur collar
-A_EBONY = {"1K": "Color - Ebony Black 1K-111121",      # Xtudo - the black ebony diffuses
-           "2K": "Color - Ebony Black 2K-111121",
-           "4K": "Color - Ebony Black 4K-111121"}
-A_WOLF = {"1K": "Color - Wolf Black 1K-111121",        # for Axe1H.dds - see AXE_NOTE below
-          "2K": "Color - Wolf Black 2K-111121",
-          "4K": "Color - Wolf Black 4K-111121"}
+A_EBONY = {"2K": "Color - Ebony Black 2K-111121"}      # Xtudo - the black ebony diffuses (2K only, 2026-11-14)
+A_WOLF = {"2K": "Color - Wolf Black 2K-111121"}        # for Axe1H.dds - see AXE_NOTE below
+MAX_DDS = 2048                                         # the owner: "in 2K and not 4K"
 
 # The ebony war axe's haft uses the STEEL axe diffuse, so an "all black" ebony set needs one file
 # out of the Wolf Black download as well. Found by reading the mesh, not by guessing.
@@ -124,7 +140,7 @@ MAP_WEAPONS = {
 VANILLA_TEXTURES = ("textures\\blood\\", "textures\\cubemaps\\eyecubemap.dds")
 
 TEXPAT = re.compile(rb"[Tt]extures.{1,180}?\.dds")
-IMAGES = ("header.png", "fur.png", "nofur.png")
+IMAGES = ("header.png", "fur.png", "nofur.png", "himbo.png", "himbo_nofur.png", "cbbe3ba.png")   # tools/installer-images.py
 
 
 def fail(msg):
@@ -245,12 +261,22 @@ def main(out_root=None, test=False):
         return n
 
     n_core = place(MAP_ARMOR, core) + place(MAP_WEAPONS, core)
+
+    # the mace, warhammer, bow, arrow / quiver / arrow in flight, and first-person copies of the Wolf
+    # weapons - built from the Wolf weapons' own pieces (build-missing-weapons.py)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bmw", os.path.join(HERE, "build-missing-weapons.py"))
+    bmw = importlib.util.module_from_spec(spec); spec.loader.exec_module(bmw)
+    mw_dir, mw_report = bmw.main(os.path.join(core, "meshes"), os.path.join(work, "missing-weapons"))
+    for fn in bmw.OUTPUTS:
+        shipped.append(os.path.join(mw_dir, fn))
+    n_built = len(bmw.OUTPUTS)
     n_nofur = place(MAP_NOFUR, os.path.join(out_root, "10 Cuirass - No fur collar"))
 
     # The worn armour again under our own folder, which is where the light plugin points vanilla's
     # four ebony armour ADDON records. Both copies are wanted: the plugin governs the armour as it
     # is worn, while ground models and the weapons - which have no addon record and name their
-    # meshes directly - still read the vanilla paths. Meshes are megabytes against a package of 4K
+    # meshes directly - still read the vanilla paths. Meshes are megabytes against a package of 2K
     # textures, so the duplication is not worth engineering away.
     n_ours = 0
     for sex in ("m", "f"):
@@ -283,31 +309,26 @@ def main(out_root=None, test=False):
         """Search order matters: the colour packs win over the base mod's own textures."""
         return [collar, ebony[res], wolf[res], furfix, base]
 
-    n_tex = {}
-    for res in ("1K", "2K", "4K"):
-        dest = os.path.join(out_root, "0%d Textures - %s" % (1 + ("1K", "2K", "4K").index(res), res))
-        found = 0
-        for rel in sorted(wanted):
-            src = None
-            for root in sources_for(res):
-                src = ci_find(root, rel)
-                if src:
-                    break
-            if src is None:
-                fail("a shipped mesh asks for '%s' and no source archive has it - in game that "
-                     "shape renders purple" % rel)
-            d = os.path.join(dest, rel.replace("\\", os.sep))
-            os.makedirs(os.path.dirname(d), exist_ok=True)
-            shutil.copy2(src, d)
-            found += 1
-        n_tex[res] = found
-
-    # ---- the optional plugin
-    hide_esl = os.path.join(REPO, "plugin", "Nordic Ebony - Hide Unmatched Weapons.esp")
-    if os.path.isfile(hide_esl):
-        d = os.path.join(out_root, "20 Hide unmatched ebony weapons")
-        os.makedirs(d, exist_ok=True)
-        shutil.copy2(hide_esl, d)
+    # 2K only, installed with the core (the owner, 2026-11-14)
+    res = "2K"; found = 0; biggest = 0
+    for rel in sorted(wanted):
+        src = None
+        for root in sources_for(res):
+            src = ci_find(root, rel)
+            if src:
+                break
+        if src is None:
+            fail("a shipped mesh asks for '%s' and no source archive has it - in game that "
+                 "shape renders purple" % rel)
+        hdr = open(src, "rb").read(20)
+        h, w = struct.unpack_from("<II", hdr, 12)
+        if hdr[:4] != b"DDS " or max(w, h) > MAX_DDS:
+            fail("'%s' is %dx%d - this mod ships 2K textures only" % (rel, w, h))
+        biggest = max(biggest, w, h)
+        d = os.path.join(core, rel.replace("\\", os.sep))
+        os.makedirs(os.path.dirname(d), exist_ok=True)
+        shutil.copy2(src, d)
+        found += 1
 
     # ---- body options: HIMBO (prebuilt male meshes + BodySlide) and CBBE 3BA (BodySlide), from the
     # two Legacy of Ysgramor refits on Nexus (110002, 111209); see tools/loy-refits.py
@@ -333,7 +354,7 @@ def main(out_root=None, test=False):
             continue
         shutil.copy2(s, os.path.join(fomod, "images", img))
 
-    for name in ("NOTICE.md", "CHANGELOG.md", "LICENSE"):
+    for name in ("README.md", "NOTICE.md", "CHANGELOG.md", "LICENSE"):
         shutil.copy2(os.path.join(REPO, name), os.path.join(out_root, name))
 
     # ---- every folder the installer names must exist and hold files
@@ -358,8 +379,8 @@ def main(out_root=None, test=False):
     print("  meshes on vanilla paths %d, plus %d for the collarless cuirass" % (n_core, n_nofur))
     print("  mirrored under ours ... %d" % n_ours)
     print("  light plugin .......... %s" % os.path.basename(main_esl))
-    print("  textures per resolution %d  (1K/2K/4K)" % n_tex["2K"])
-    print("  optional plugin ....... %s" % ("yes" if os.path.isfile(hide_esl) else "NOT BUILT"))
+    print("  built weapon meshes ... %d (mace, warhammer, bow, arrow + quiver, flight, 1st-person copies)" % n_built)
+    print("  textures, 2K only ..... %d (largest %d px)" % (found, biggest))
     print("  installer sources ..... %d, every one present" % len(sources))
     print("  files ................. %d" % total)
     return out_root

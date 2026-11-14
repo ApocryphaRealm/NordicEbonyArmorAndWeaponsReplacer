@@ -1,5 +1,24 @@
 # Changelog - Nordic Ebony Armor and Weapons Replacer
 
+## 1.1.0 - 2026-11-14 - untested
+
+### Added
+- Installer pictures for every option that installs a model, and a header showing the whole set (tools/installer-images.py renders them from the built package).
+- First-person models for the Wolf sword, greatsword, war axe, battleaxe and dagger. The vanilla first-person records point at 1stpersonebony*.nif, which 1.0.0 did not ship, so in first person those five showed the vanilla ebony art. The new mace and warhammer ship first-person files too; the bow's first-person record uses the same file as third person.
+- The four ebony weapons Legacy of Ysgramor has no Wolf version of - the mace, the warhammer, the bow and the arrows, with the quiver and its six quiver arrows and the arrow in flight - now replace the vanilla ebony ones, so the whole ebony set matches. Every piece is cut from NordwarUA's own Wolf ebony weapons and keeps its own UVs on the set's Xtudo-black atlases; there is no new texture. The mace is the war axe's haft and grip with six knotwork flanges and a spiked crown; the warhammer is the battle axe with a round paw-cap hammer, a gold lip and a gnarled striking face; the bow is the sword's blades bent into recurved limbs with fang spurs; the arrows carry the war axe's spike, fangs as vanes and a paw nock; the quiver is the dagger's scabbard with a gold collar and fang plate. Built by tools/build-missing-weapons.py from the Legacy of Ysgramor download and the game's own meshes at build time - the repository carries no art.
+
+### Changed
+- The bow is fitted to the vanilla bow rig: its string ends sit on the two string bones the draw animation turns (the bow 4 to 5 percent shorter, the limb tips 3.2 units further back than the design sheet), every shape skinned with vanilla bone weights, the string on Bow_StringBone1 and 2.
+- Textures are 2K only (the owner, 2026-11-14): the 1K and 4K choices are gone and Xtudo's 2K textures install with the core; the build refuses any texture over 2048.
+- The arrows' shaft uses the war axe's wrapped grip (the same leather wrap as the approved design's battle-axe haft): the game hides the quiver arrows one by one by shape name, so each quiver arrow has to be one shape on one atlas.
+
+### Removed
+- The optional Hide Unmatched Weapons plugin and its installer page: the mace, warhammer, bow and arrows now match, so its 113 levelled-list and 7 recipe overrides are gone and those lists and recipes are vanilla again. It was never posted.
+- The vanilla ebony mace's belt hook (Scb) is not carried over - no Wolf piece forms a hook; the mace hangs at the hip like the war axe.
+
+### Known
+- Untested in game: the quiver on the back (which side faces out), the bow draw and the six quiver arrows disappearing as arrows are used.
+
 ## 1.0.0
 
 First release.
