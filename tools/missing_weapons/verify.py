@@ -3,9 +3,10 @@
   * the collision object hanging on a different node than vanilla's;
   * a skinned shape whose shader lacks SLSF1 Skinned (0x2), or a rigid one that has it (Truly Nordic bow, 2026-11-11);
   * one of OUR shapes pointing at a texture outside textures\\nordwar\\companions\\ (the Wolf atlases);
-  * one of OUR rigid shapes with more than 1% of its surface on faces with no UV area, or a tangent / bitangent that is
-    not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer 1.1.0);
-  * one of OUR rigid shapes with a face whose three vertex normals all lean > 40 deg off it - a hard edge smoothed over
+  * one of OUR shapes with more than 1% of its surface on faces with no UV area, or a tangent / bitangent that is
+    not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer 1.1.0); a
+    skinned shape (the bow) is read from its NiSkinPartition's vertex buffer (bow r02, 2026-11-14 - it was not read);
+  * one of OUR shapes with a face whose three vertex normals all lean > 40 deg off it - a hard edge smoothed over
     because PyNifly writes one normal per vertex (the warhammer's teeth drew as a flat disc, 1.1.0);
   * light through the mesh (see_through): rays at OUR shapes that meet a back face first and no front face after - the
     game culls back faces, so the light behind shows through (bow handle and arrow, 1.1.0 2026-11-14); gated on the bow
@@ -43,18 +44,29 @@ def texpaths(n, sh):
 def surface_frame(n, b):
     """a rigid shape's UV and tangent-frame health: the share (by 3D area) of faces with NO UV area - a piece whose UVs
     were lost samples one texel and has no tangent frame, black and flat in game (warhammer extension 1.1.0, 2026-11-14) -
-    and the vertices whose tangent or bitangent is not a unit vector. None for a skinned shape (data in the partition)."""
+    and the vertices whose tangent or bitangent is not a unit vector. A skinned shape keeps its vertices in its
+    NiSkinPartition (SSE: one global buffer, the same 28 bytes first, then 12 of skinning) - read from there."""
     o = n.av_end(b, 0, [], []); blk = n.blocks[b]; q = o + 28
     desc = struct.unpack_from("<Q", blk, q)[0]; ntri, nv = struct.unpack_from("<HH", blk, q + 8); size = struct.unpack_from("<I", blk, q + 12)[0]
-    if not size: return None
-    stride, fl = (desc & 0xF) * 4, desc >> 44
-    if (fl & 0xFFF) != 0x1b or stride != 28: return {"fault": "vertex layout is not position+UV+normal+tangent (28 bytes)", "flags": hex(fl), "stride": stride}
-    raw = np.frombuffer(bytes(blk[q + 16:q + 16 + nv * stride]), np.uint8).reshape(nv, stride)
+    sk = struct.unpack_from("<i", blk, o + 16)[0]
+    if size:
+        stride, fl = (desc & 0xF) * 4, desc >> 44
+        if (fl & 0xFFF) != 0x1b or stride != 28: return {"fault": "vertex layout is not position+UV+normal+tangent (28 bytes)", "flags": hex(fl), "stride": stride}
+        raw = np.frombuffer(bytes(blk[q + 16:q + 16 + nv * stride]), np.uint8).reshape(nv, stride)
+        F = np.frombuffer(bytes(blk[q + 16 + nv * stride:q + 16 + nv * stride + ntri * 6]), np.uint16).reshape(-1, 3).astype(np.int64)
+    elif sk >= 0:
+        part = struct.unpack_from("<i", n.blocks[sk], 4)[0]; pb = n.blocks[part]
+        _, dsize, stride = struct.unpack_from("<III", pb, 0); fl = struct.unpack_from("<Q", pb, 12)[0] >> 44
+        if (fl & 0xFFF) != 0x5b or stride != 40:
+            return {"fault": "skinned vertex layout is not position+UV+normal+tangent+skin (40 bytes)", "flags": hex(fl), "stride": stride}
+        raw = np.frombuffer(bytes(pb[20:20 + dsize]), np.uint8).reshape(-1, stride)
+        F = winding._tris_from_shape(n, b)[1]
+    else:
+        return None
     P = raw[:, 0:12].copy().view(np.float32).astype(np.float64); bx = raw[:, 12:16].copy().view(np.float32)[:, 0]
     U = raw[:, 16:20].copy().view(np.float16).astype(np.float64)
     Nb = raw[:, 20:24].astype(np.float64) / 127.5 - 1; Tb = raw[:, 24:28].astype(np.float64) / 127.5 - 1
     T = Tb[:, :3]; Bt = np.stack([bx, Nb[:, 3], Tb[:, 3]], 1)
-    F = np.frombuffer(bytes(blk[q + 16 + nv * stride:q + 16 + nv * stride + ntri * 6]), np.uint16).reshape(-1, 3).astype(np.int64)
     a3 = 0.5 * np.linalg.norm(np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]), axis=1)
     d1, d2 = U[F[:, 1]] - U[F[:, 0]], U[F[:, 2]] - U[F[:, 0]]; auv = 0.5 * np.abs(d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0])
     dens = auv / np.maximum(a3, 1e-12); med = np.median(dens[a3 > 1e-6])
@@ -152,6 +164,7 @@ def check(built, vanilla, ours_shapes):
             bad = [p for p in texpaths(n, sh) if p and not p.lower().startswith(("textures\\nordwar\\companions\\", "textures\\cubemaps\\"))]
             if bad: faults.append(("texture outside the Wolf set", nm, bad))
             sf = surface_frame(n, b); surf[nm] = sf
+            if sf is None: faults.append(("UVs and tangent frames UNREAD - a shape with no vertex data of its own and no skin", nm))
             if sf and ("fault" in sf or sf["no_uv_area_share"] > 0.01 or sf["bad_tangent_frames"]):
                 faults.append(("UVs lost or tangent frame broken (draws black and flat in game)", nm, sf))
             if sf and sf.get("smoothed_over_hard_edges"):

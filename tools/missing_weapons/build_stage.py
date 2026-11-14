@@ -184,6 +184,30 @@ def weld_join(objs, name, **props):
     for k, v in props.items(): j[k] = v
     return j
 
+def flat_uv_faces(o, share=1e-3):
+    """faces with (next to) no UV area - a source piece's end caps, whose UVs all sit on one row of the atlas: the game
+    gets no tangent frame there (the string's ends and the nock loops, found by verify's read-back of the skinned bow,
+    r02) - each given a planar window along its own normal, centred on its UVs, at the piece's median UV density. The
+    area is measured as the NIF stores UVs, in half floats (a sliver a few 1e-4 wide collapses to a line there), and per
+    TRIANGLE as the game draws it (a quad with three corners on one row has one flat half)."""
+    import numpy as np
+    me = o.data; uv = me.uv_layers.active.data; me.calc_loop_triangles(); worst = {}
+    for t in me.loop_triangles:
+        P = [me.vertices[i].co for i in t.vertices]; a3 = 0.5 * (P[1] - P[0]).cross(P[2] - P[0]).length
+        if a3 < 1e-9: continue
+        c = [np.float16(tuple(uv[l].uv)).astype(float) for l in t.loops]
+        auv = 0.5 * abs((c[1][0] - c[0][0]) * (c[2][1] - c[0][1]) - (c[2][0] - c[0][0]) * (c[1][1] - c[0][1]))
+        worst[t.polygon_index] = min(worst.get(t.polygon_index, 1e9), auv / a3)
+    med = sorted(worst.values())[len(worst) // 2]; k_ = math.sqrt(med); n_ = 0
+    for p in me.polygons:
+        if worst.get(p.index, 1e9) >= med * share: continue
+        nrm = p.normal if p.normal.length > 1e-9 else Vector((0, 0, 1)); a_ = nrm.orthogonal().normalized(); b_ = nrm.cross(a_).normalized()
+        cen = p.center; cu = sum((uv[l].uv for l in p.loop_indices), Vector((0, 0))) / p.loop_total
+        for l in p.loop_indices:
+            d_ = me.vertices[me.loops[l].vertex_index].co - cen; uv[l].uv = (cu.x + k_ * d_.dot(a_), cu.y + k_ * d_.dot(b_))
+        n_ += 1
+    me.update(); return n_
+
 def double_caps(o):
     """every cap_holes cap made two-sided: a reversed twin on its own vertices. A cap sits where the piece's inside and
     outside meet several pieces at once (the arrowhead's four blades at its foot), where no ray vote can tell its outside;
@@ -570,22 +594,25 @@ string = [o for o in bow if o.name.startswith("bow_string")]; assert len(string)
 #    are capped; the grip is stretched into its guards and each limb's base pulled down into its guard.
 # 2. THE ARROW REST: the upper guard was the sword's crossguard, its arms out where the arrow lies. Both guards are now
 #    REPLACED (owner 2026-11-14 08:19 / 08:27, collar.py): one round braided collar at each end of the grip with the
-#    arrow's groove in its top edge, the limbs round at the root flattening out, the talons seated on the limbs.
+#    arrow's groove in its top edge, the limbs round at the root flattening out, the talons seated on the limbs. r02
+#    (Main Agent's review of r01): each limb's root is a new loft from a round rod (r01's reshaped blade base still read
+#    as a faceted slab) and each talon a solid swept claw (r01's re-cut war axe fang read as a flat ragged cut-out).
 # 3. STRING NOCKS: the string met the bare metal at the tip. Each limb gets a nock 2.6 below its point - a round notch
 #    in both edges (the limb's width drawn in round the nock, its depth the groove's radius) - the string ends there on the belly, and a loop of the same wrapped cord (the war axe's grip)
 #    goes round the limb through both grooves. The limb tip now stands 2.6 past the string's end, as vanilla's does
 #    (2.9); the string end stays on vanilla's string-bone pivot (the fit below), so the drawn string turns about the nock.
 BREP = REP.setdefault("bow_fix", {})
-# each spur's five fang pieces, and each limb's six blade pieces, meet along their rims: welded into one piece first, so
-# only the real holes are capped (see weld_join)
+# the design's war axe fang spurs go: each limb gets a solid claw instead (collar.build_talon, r02 below)
+for o in [o for o in bow if o.name.startswith("bow_spur")]:
+    bow.remove(o); bpy.data.objects.remove(o)
+# each limb's six blade pieces meet along their rims: welded into one piece first, so only the real holes are capped
+# (see weld_join)
 for s_ in (1, -1):
-    for pre, nm_, props in (("bow_spur%d_" % s_, "bow_spur%d_fang" % s_, {"item": "bow"}),
-                            ("bow_limb%d_" % s_, "bow_limb%d_blade" % s_, {"item": "bow", "limb": s_})):
-        pcs = [o for o in bow if o.name.startswith(pre)]; assert pcs, pre
-        for o in pcs: bow.remove(o)
-        bow.append(weld_join(pcs, nm_, **props))
-BREP["holes_capped"] = {o.name: n_ for o in bow if o.name.startswith(("bow_spur", "bow_limb", "bow_string")) for n_ in [cap_holes(o)] if n_}
-BREP["welded_hard_edges_split"] = {o.name: harden(o) for o in bow if o.name.startswith(("bow_spur", "bow_limb"))}
+    pcs = [o for o in bow if o.name.startswith("bow_limb%d_" % s_)]; assert pcs, s_
+    for o in pcs: bow.remove(o)
+    bow.append(weld_join(pcs, "bow_limb%d_blade" % s_, item="bow", limb=s_))
+BREP["holes_capped"] = {o.name: n_ for o in bow if o.name.startswith(("bow_limb", "bow_string")) for n_ in [cap_holes(o)] if n_}
+BREP["welded_hard_edges_split"] = {o.name: harden(o) for o in bow if o.name.startswith("bow_limb")}
 grip_o = [o for o in bow if o.name == "bow_grip"][0]
 def side_objs(prefix, s): return [o for o in bow if o.name.startswith("%s%d_" % (prefix, s))]
 def ys(objs, s): return [s * v.co.y for o in objs for v in o.data.vertices]
@@ -611,16 +638,13 @@ for v in grip_o.data.vertices:
     if abs(v.co.y) > collar.Y0 - 0.05:
         v.co.z = max(-1.6, min(1.6, v.co.z)); v.co.x = XC + max(-0.9, min(0.9, v.co.x - XC))
 grip_o.data.update()
-# the limbs: round at the root (R_ROOT, on the collar's axis), flattening to their own section over ROOT_LEN
+# the limbs: cut off above the collar and lofted from a round rod (R_ROOT, on the collar's axis) into their own flat
+# section over ROOT_LEN (collar.loft_root - r02: r01's reshaped blade base still read as a faceted slab)
 BREP["round_roots"] = {}
 for s in (1, -1):
-    lm_ = side_objs("bow_limb", s)
-    for o in lm_:
-        collar.ring_cuts(o, s, collar.Y1 - 0.4, collar.Y1 + collar.ROOT_LEN, 0.25)
-        r_ = collar.round_root(o, s, XC, collar.Y1)
-    BREP["round_roots"]["%+d" % s] = {"radius": collar.R_ROOT, "from": collar.Y1, "to": collar.Y1 + collar.ROOT_LEN,
-                                      "face_area_ratio_p5_p50_p95": [round(float(x), 3) for x in np.percentile(r_, [5, 50, 95])]}
-    BREP["welded_hard_edges_split_after_rounding_%+d" % s] = harden(lm_[0])
+    lm_ = side_objs("bow_limb", s); assert len(lm_) == 1, [o.name for o in lm_]
+    BREP["round_roots"]["%+d" % s] = collar.loft_root(lm_[0], s, XC, collar.Y1)
+    BREP["round_roots"]["%+d" % s]["hard_edges_split"] = harden(lm_[0])
 # the collars
 cu = collar.build_collar("bow_collar1_band", XC, BAND_UV); cl = collar.build_collar("bow_collar-1_band", XC, BAND_UV)
 collar.turn_lower(cl, XC)
@@ -628,12 +652,11 @@ for c_ in (cu, cl):
     c_["item"] = "bow"; c_["tex"] = "sword1hebony"; BREP.setdefault("collar_hard_edges", {})[c_.name] = harden(c_); bow.append(c_)
 BREP["collar"] = {"axis_x": XC, "band_radius": collar.RC, "lip_radius": collar.RC + collar.LIP, "y": [round(collar.Y0, 3), collar.Y1],
                   "band_height": collar.BAND_H, "lip_height": collar.LIP_H, "segments": collar.NSEG}
-# the talons, seated on the limbs' backs above the collars
+# the talons: one solid claw per limb, rooted in the limb's back just above the collar (collar.build_talon, r02)
 BREP["talons"] = {}
 for s in (1, -1):
-    sp = [o for o in bow if o.name == "bow_spur%d_fang" % s][0]
-    BREP["talons"]["%+d" % s] = collar.seat_talon(sp, s, side_objs("bow_limb", s), collar.Y1 - 0.12)
-    BREP["talons"]["%+d" % s]["holes_capped"] = cap_holes(sp); harden(sp)
+    t_, BREP["talons"]["%+d" % s] = collar.build_talon("bow_talon%d" % s, s, side_objs("bow_limb", s), collar.Y1)
+    t_["item"] = "bow"; t_["tex"] = "sword1hebony"; BREP["talons"]["%+d" % s]["hard_edges_split"] = harden(t_); bow.append(t_)
 
 # string nocks
 st = string[0]; SV = [v.co for v in st.data.vertices]
@@ -703,8 +726,12 @@ for s in (1, -1):
     lp.data.update(); lp["item"] = "bow"; bow.append(lp)
     bm = bmesh.new(); bm.from_mesh(lp.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)   # its two ends meet: closed
     nk["loop_open_edges"] = sum(1 for e in bm.edges if e.is_boundary); bm.to_mesh(lp.data); bm.free(); lp.data.update()
+    # the cord turns tightly round the limb's corners: its sharp folds split, or their vertex normals average over the
+    # fold and the game lights those faces from the wrong side (verify's read-back of the skinned bow, r02)
+    nk["loop_hard_edges_split"] = harden(lp); nk["loop_flat_uv_faces_remapped"] = flat_uv_faces(lp)
     nk.update({"loop": lp.name, "loop_perimeter": per, "loop_centre_x": xc, "loop_half_x": hx, "loop_half_z": hz})
 bpy.data.objects.remove(LOOP_SRC)
+BREP["string_flat_uv_faces_remapped"] = flat_uv_faces(st)
 BREP["nocks"] = {"cord_radius": RS, "groove_radius": RG, "below_point": DNOCK, "string_x": xstr,
                  "sides": {str(s): {k: (round(v, 3) if isinstance(v, float) else v) for k, v in NOCK[s].items()} for s in NOCK}}
 # the string is the war axe's grip stretched tip to tip, with vertices only near its ends: cut it into short lengths, so
@@ -745,6 +772,7 @@ ZA, RG_ARROW = VZ + 0.3, 0.50
 BREP["arrow_groove"] = {"y": round(mid_.y, 3), "z": round(ZA, 3), "radius": RG_ARROW, "vanilla_riser_half_width": round(VZ, 3),
                         "moved": {o.name: collar.carve_groove(o, XC, (mid_.y if o.name.startswith("bow_collar1") else -mid_.y * kyn / kyp), ZA, RG_ARROW)
                                   for o in bow if o.name.startswith("bow_collar")}}
+BREP["arrow_groove"]["hard_edges_split_after"] = {o.name: harden(o) for o in bow if o.name.startswith("bow_collar")}
 
 def split_vanilla(keep_string):
     c = vm.copy(); c.data = vm.data.copy(); bpy.context.scene.collection.objects.link(c)

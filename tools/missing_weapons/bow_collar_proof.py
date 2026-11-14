@@ -1,7 +1,8 @@
 # Proof renders of the BUILT bow (ebonybowskinned.nif) for the owner's 2026-11-14 08:19 / 08:27 requests: the round
 # collar at both ends of the grip (the same braid all round), the arrow's groove in its edge, the limbs round at the
-# root and flattening out, and the talons seated on the limbs. Same set-up as bow_proof.py (imported from the game NIF,
+# root and flattening out, and the talons on the limbs. Same set-up as bow_proof.py (imported from the game NIF,
 # shipped Wolf atlases + normal maps, BACKFACE CULLING ON, Cycles), which this script runs up to its first view.
+# r02 adds large close-ups of each limb root and each talon, and the collar's sides where its two braid copies meet.
 #   Blender:  blender --background --factory-startup --python bow_collar_proof.py -- <bow nif> <textures root> <out folder>
 #   Sheet:    python bow_collar_proof.py --sheet <out folder> <sheet.jpg> [title]
 import os, sys
@@ -14,17 +15,25 @@ def sheet(src, out, title):
              [("col_up_front", "upper collar, front"), ("col_up_back", "upper collar, back"), ("col_lo_front", "lower collar, front"), ("col_lo_back", "lower collar, back")]),
             ("3. THE ARROW GROOVE - red rod: an arrow (r 0.3) on its line beside vanilla's riser at Bow_MidBone; the groove (r 0.5) round it",
              [("groove_string", "from the string, arrow end-on"), ("groove_side", "from the arrow's side"), ("groove_tq", "three-quarter"), ("groove_top", "from above")]),
-            ("4. THE TALONS - seated on each limb's back, root on the collar, point along the limb toward the tip",
+            ("4. THE TALONS - one solid claw per limb, rooted in the limb's back above the collar, curving up toward the tip",
              [("talon_side", "upper, side"), ("talon_tq", "upper, three-quarter"), ("talon_lo_side", "lower, side"), ("talon_lo_tq", "lower, three-quarter")]),
-            ("5. THE LIMB ROOT - round where it leaves the collar, flattening to the limb's own section",
+            ("5. THE LIMB ROOT - a round rod out of the collar, easing into the limb's flat section over 10 units",
              [("root_side", "upper root, side"), ("root_front", "upper root, front"), ("root_lo_side", "lower root, side"), ("root_lo_front", "lower root, front")]),
-            ("6. BACKLIT - bright panel behind, back faces culled as in game: white inside the bow = light through",
+            ("6. CLOSE-UP - each limb root where it leaves the collar",
+             [("big_root_up", "upper limb root, three-quarter from the front"), ("big_root_lo", "lower limb root, three-quarter from the front")], 2),
+            ("7. CLOSE-UP - each talon",
+             [("big_talon_up", "upper talon, three-quarter from the back"), ("big_talon_lo", "lower talon, three-quarter from the back")], 2),
+            ("8. THE COLLAR'S SIDES - where the braid's two copies meet, under the arrow groove",
+             [("seam_up_pz", "upper collar, +z side"), ("seam_up_mz", "upper collar, -z side"), ("seam_lo_pz", "lower collar, +z side"), ("seam_lo_mz", "lower collar, -z side")]),
+            ("9. BACKLIT - bright panel behind, back faces culled as in game: white inside the bow = light through",
              [("backlit_side", "side"), ("backlit_front", "front"), ("backlit_tq", "three-quarter")])]
-    tw, th, hd = 420, 520, 30
-    W = 4 * tw; H = 40 + sum(hd + th + 22 for _ in rows)
+    W = 4 * 420; hd = 30
+    def dims(r): return (W // r[2], 980) if len(r) > 2 else (420, 520)
+    H = 40 + sum(hd + dims(r)[1] + 22 for r in rows)
     sh = Image.new("RGB", (W, H), (34, 35, 38)); d = ImageDraw.Draw(sh)
     d.text((8, 10), title, fill=(235, 235, 235)); y = 40
-    for head, cells in rows:
+    for r in rows:
+        head, cells = r[0], r[1]; tw, th = dims(r)
         d.text((8, y + 8), head, fill=(255, 205, 120)); y += hd
         for k, (nm, lab) in enumerate(cells):
             p = os.path.join(src, "bc_%s.png" % nm)
@@ -58,6 +67,8 @@ for nm, sg in (("up", 1), ("lo", -1)):
     c = Vector((0, sg * Y, 0))
     shoot("col_%s_front" % nm, c, (-0.8, -0.25 * sg, -0.55), (0, 1, 0), 6.5, 900, 1000)
     shoot("col_%s_back" % nm, c, (0.8, -0.25 * sg, 0.55), (0, 1, 0), 6.5, 900, 1000)
+    for zn, zs in (("pz", 1), ("mz", -1)):                  # the sides: where the two braid copies meet
+        shoot("seam_%s_%s" % (nm, zn), c, (0, -0.15 * sg, -zs), (0, 1, 0), 6.0, 900, 1000)
 # the arrow on its line, as verify.py's arrow-rest check: vanilla's riser half-width at Bow_MidBone + the arrow's radius
 ZR = 1.989 + 0.3; rods = []
 for sg in (1, -1):
@@ -70,12 +81,16 @@ shoot("groove_tq", gc, (0.55, -0.3, -0.78), (0, 1, 0), 7, 900, 1000)
 shoot("groove_top", gc, (0, -1, 0.0001), (1, 0, 0), 9, 1000, 900)
 for r in rods: bpy.data.objects.remove(r)
 for nm, sg in (("", 1), ("_lo", -1)):
-    c = Vector((1.0, sg * 9.5, 0))
+    c = Vector((1.8, sg * 10.0, 0))
     shoot("talon%s_side" % nm, c, (0, 0, -1), (0, 1, 0), 9, 900, 1000)
     shoot("talon%s_tq" % nm, c, (-0.55, -0.15 * sg, -0.82), (0, 1, 0), 9, 900, 1000)
-    c = Vector((0, sg * 9.0, 0))
-    shoot("root%s_side" % nm, c, (0, 0, -1), (0, 1, 0), 10, 900, 1000)
-    shoot("root%s_front" % nm, c, (-1, 0, 0.0001), (0, 1, 0), 10, 900, 1000)
+    c = Vector((0.6, sg * 11.0, 0))
+    shoot("root%s_side" % nm, c, (0, 0, -1), (0, 1, 0), 14, 900, 1000)
+    shoot("root%s_front" % nm, c, (-1, 0, 0.0001), (0, 1, 0), 14, 900, 1000)
+# the large close-ups: each limb root where it leaves the collar, and each talon
+for nm, sg in (("up", 1), ("lo", -1)):
+    shoot("big_root_%s" % nm, Vector((-0.2, sg * 9.0, 0)), (-0.75, -0.2 * sg, -0.62), (0, 1, 0), 7.5, 1200, 1400)
+    shoot("big_talon_%s" % nm, Vector((2.2, sg * 10.1, 0)), (-0.45, -0.15 * sg, -0.88), (0, 1, 0), 7.5, 1200, 1400)
 three_suns(False); bg.inputs["Color"].default_value = (0.02, 0.02, 0.02, 1)
 for view, look in (("side", (0, 0, -1)), ("front", (1, 0, 0)), ("tq", (0.6, 0, -0.8))):
     L = Vector(look).normalized()

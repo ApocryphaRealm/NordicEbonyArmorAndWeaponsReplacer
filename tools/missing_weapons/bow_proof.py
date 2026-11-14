@@ -52,11 +52,12 @@ for o in bpy.data.objects:
     if o.type != "MESH": continue
     d = tex.get(o.name, tex.get(o.name.split(".")[0], ""))
     o.data.materials.clear(); o.data.materials.append(material(d)); objs.append(o)
-arm = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
+arms = [o for o in bpy.data.objects if o.type == "ARMATURE"]   # PyNifly makes one per bone set when the shapes' differ
 dg = bpy.context.evaluated_depsgraph_get()
 def bone_world(name):
-    for b in arm.data.bones:
-        if b.name == name: return arm.matrix_world @ b.head_local
+    for arm in arms:
+        for b in arm.data.bones:
+            if b.name == name: return arm.matrix_world @ b.head_local
 mid = bone_world("Bow_MidBone"); s1, s2 = bone_world("Bow_StringBone1"), bone_world("Bow_StringBone2")
 print("PIVOTS", tuple(s1), tuple(s2), "MID", tuple(mid))
 
