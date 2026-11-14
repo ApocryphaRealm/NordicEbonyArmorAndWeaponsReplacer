@@ -130,12 +130,21 @@ def join(objs, name):
     objs = list(objs)
     for o in objs:
         o.data = o.data.copy()
+        # ONE UV layer under ONE name on every piece before the join: Blender's join matches UV layers BY NAME, so a piece
+        # whose layer has another name (build_v1face.py's new face and extension call theirs "UV", PyNifly's imports
+        # "UVMap") lands in a second layer, and the exported first layer holds (0, 0) for all its corners - the warhammer's
+        # extension and face drew the atlas's corner texel with no tangent frame: black and flat in game (1.1.0, 2026-11-14)
+        uvs = o.data.uv_layers; assert len(uvs) >= 1, (name, o.name, "a piece without UVs")
+        keep_uv = uvs.active.name
+        for nm in [l.name for l in uvs if l.name != keep_uv]: uvs.remove(uvs[nm])
+        uvs[keep_uv].name = "UVMap"
     select_only(objs[0])
     for o in objs[1:]: o.hide_set(False); o.hide_viewport = False; o.select_set(True)
     nsel = sum(1 for x in bpy.context.scene.objects if x.select_get())
     assert nsel == len(objs), (name, 'selected', nsel, 'meant', len(objs))
     if len(objs) > 1: bpy.ops.object.join()
     o = bpy.context.view_layer.objects.active; o.name = name; o.data.name = name
+    assert [l.name for l in o.data.uv_layers] == ["UVMap"], (name, "UV layers after the join", [l.name for l in o.data.uv_layers])
     bm = bmesh.new(); bm.from_mesh(o.data)
     bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
     bm.to_mesh(o.data); bm.free(); o.data.update()

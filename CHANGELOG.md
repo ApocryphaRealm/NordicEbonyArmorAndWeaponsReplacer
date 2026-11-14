@@ -19,6 +19,9 @@
 ### Known
 - Untested in game: the quiver on the back (which side faces out), the bow draw and the six quiver arrows disappearing as arrows are used.
 
+### Fixed
+- The warhammer's round extension, gold lip and toothed striking face drew black and flat in game: their UVs were lost when the head's pieces were joined into one shape (the new pieces' UV layer had another name), so they sampled one corner texel with no tangent frame. Every piece now carries one UV layer under one name before the join, and the build fails if a shape has faces with no UV area or a broken tangent frame.
+
 ## 1.0.0
 
 First release.

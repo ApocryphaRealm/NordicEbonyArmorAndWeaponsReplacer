@@ -7,6 +7,7 @@ import bpy, os, sys, math, addon_utils
 from mathutils import Vector, Matrix
 addon_utils.enable("io_scene_nifly", default_set=True)
 SRC, TEX, OUT = sys.argv[sys.argv.index("--") + 1:][:3]
+ONLY = (sys.argv[sys.argv.index("--") + 4:] or [""])[0].split(",")      # optional 4th: a comma list of pieces (e.g. warhammer)
 os.makedirs(OUT, exist_ok=True)
 PIECES = [("mace", "ebonymace.nif", None), ("warhammer", "ebonywarhammer.nif", None), ("bow", "ebonybowskinned.nif", None),
           ("arrow", "ebonyarrowprojectile.nif", None), ("quiver", "ebonyarrow.nif", "ArrowQuiver"),
@@ -30,6 +31,10 @@ def material(dds):
         t = nt.nodes.new("ShaderNodeTexImage"); t.image = bpy.data.images.load(p, check_existing=True); nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
     else:
         b.inputs["Base Color"].default_value = (1, 0, 1, 1)            # a missing texture shows magenta
+    pn = p[:-4] + "_n.dds"            # the game's tangent-space normal map, as the game shader uses it: Blender derives the
+    if os.path.isfile(pn):            # tangents from the UVs, so a piece whose UVs were lost renders flat here too (warhammer 1.1.0)
+        tn = nt.nodes.new("ShaderNodeTexImage"); tn.image = bpy.data.images.load(pn, check_existing=True); tn.image.colorspace_settings.name = "Non-Color"
+        nm = nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(tn.outputs["Color"], nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     b.inputs["Metallic"].default_value = 0.6; b.inputs["Roughness"].default_value = 0.4
     tr = nt.nodes.new("ShaderNodeBsdfTransparent"); geo = nt.nodes.new("ShaderNodeNewGeometry"); mix = nt.nodes.new("ShaderNodeMixShader")
     nt.links.new(geo.outputs["Backfacing"], mix.inputs["Fac"]); nt.links.new(b.outputs[0], mix.inputs[1]); nt.links.new(tr.outputs[0], mix.inputs[2])
@@ -75,6 +80,7 @@ def shoot(objs, png, yaw, pitch, W=700, H=1100):
     bpy.ops.render.render(write_still=True); bpy.data.objects.remove(co)
 
 for name, fn, _ in PIECES:
+    if ONLY != [""] and name not in ONLY: continue
     objs = load(os.path.join(SRC, fn))
     print("PIECE", name, [o.name for o in objs])
     for view, yaw, pitch in (("front", 0, 0), ("back", 180, 0), ("tq", 40, 20)):

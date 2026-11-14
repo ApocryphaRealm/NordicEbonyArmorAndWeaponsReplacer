@@ -3,6 +3,8 @@
   * the collision object hanging on a different node than vanilla's;
   * a skinned shape whose shader lacks SLSF1 Skinned (0x2), or a rigid one that has it (Truly Nordic bow, 2026-11-11);
   * one of OUR shapes pointing at a texture outside textures\\nordwar\\companions\\ (the Wolf atlases);
+  * one of OUR rigid shapes with more than 1% of its surface on faces with no UV area, or a tangent / bitangent that is
+    not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer 1.1.0);
   * the arrow file without exactly Arrow1..Arrow6 as single shapes under ArrowQuiver;
   * winding: an edge walked the same way by both its faces, or a surface whose back sees the sky more than its front
     (the game draws one side; review renders draw both - shield 1.0.0) - measured in each shape's WORLD frame.
@@ -31,6 +33,29 @@ def texpaths(n, sh):
         l = struct.unpack_from("<I", tb, p)[0]; out.append(tb[p + 4:p + 4 + l].decode("latin-1")); p += 4 + l
     return out
 
+def surface_frame(n, b):
+    """a rigid shape's UV and tangent-frame health: the share (by 3D area) of faces with NO UV area - a piece whose UVs
+    were lost samples one texel and has no tangent frame, black and flat in game (warhammer extension 1.1.0, 2026-11-14) -
+    and the vertices whose tangent or bitangent is not a unit vector. None for a skinned shape (data in the partition)."""
+    o = n.av_end(b, 0, [], []); blk = n.blocks[b]; q = o + 28
+    desc = struct.unpack_from("<Q", blk, q)[0]; ntri, nv = struct.unpack_from("<HH", blk, q + 8); size = struct.unpack_from("<I", blk, q + 12)[0]
+    if not size: return None
+    stride, fl = (desc & 0xF) * 4, desc >> 44
+    if (fl & 0xFFF) != 0x1b or stride != 28: return {"fault": "vertex layout is not position+UV+normal+tangent (28 bytes)", "flags": hex(fl), "stride": stride}
+    raw = np.frombuffer(bytes(blk[q + 16:q + 16 + nv * stride]), np.uint8).reshape(nv, stride)
+    P = raw[:, 0:12].copy().view(np.float32).astype(np.float64); bx = raw[:, 12:16].copy().view(np.float32)[:, 0]
+    U = raw[:, 16:20].copy().view(np.float16).astype(np.float64)
+    Nb = raw[:, 20:24].astype(np.float64) / 127.5 - 1; Tb = raw[:, 24:28].astype(np.float64) / 127.5 - 1
+    T = Tb[:, :3]; Bt = np.stack([bx, Nb[:, 3], Tb[:, 3]], 1)
+    F = np.frombuffer(bytes(blk[q + 16 + nv * stride:q + 16 + nv * stride + ntri * 6]), np.uint16).reshape(-1, 3).astype(np.int64)
+    a3 = 0.5 * np.linalg.norm(np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]), axis=1)
+    d1, d2 = U[F[:, 1]] - U[F[:, 0]], U[F[:, 2]] - U[F[:, 0]]; auv = 0.5 * np.abs(d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0])
+    dens = auv / np.maximum(a3, 1e-12); med = np.median(dens[a3 > 1e-6])
+    flat = (a3 > 1e-6) & (dens < med * 1e-3)
+    bad_t = int(((np.abs(np.linalg.norm(T, axis=1) - 1) > 0.1) | (np.abs(np.linalg.norm(Bt, axis=1) - 1) > 0.1)).sum())
+    return {"faces": int(len(F)), "no_uv_area_share": round(float(a3[flat].sum() / a3.sum()), 4), "no_uv_area_faces": int(flat.sum()),
+            "bad_tangent_frames": bad_t, "uv_range": [np.round(U.min(0), 4).tolist(), np.round(U.max(0), 4).tolist()]}
+
 def winding_world(n, ours, seed=7):
     rng = np.random.default_rng(seed); shapes = {}
     for b in A.shapes_of(n):
@@ -51,7 +76,7 @@ def winding_world(n, ours, seed=7):
     return rows, faults
 
 def check(built, vanilla, ours_shapes):
-    n, v = niflib.Nif(built), niflib.Nif(vanilla); faults = []
+    n, v = niflib.Nif(built), niflib.Nif(vanilla); faults = []; surf = {}
     tn, tv = node_table(n), node_table(v)
     if tn != tv: faults.append(("node tree differs from vanilla", sorted(set(tv) ^ set(tn)) or [k for k in tv if tv[k] != tn.get(k)]))
     if coll_node(n) != coll_node(v): faults.append(("collision on another node", coll_node(n), coll_node(v)))
@@ -63,9 +88,12 @@ def check(built, vanilla, ours_shapes):
         if nm in ours_shapes:
             bad = [p for p in texpaths(n, sh) if p and not p.lower().startswith(("textures\\nordwar\\companions\\", "textures\\cubemaps\\"))]
             if bad: faults.append(("texture outside the Wolf set", nm, bad))
+            sf = surface_frame(n, b); surf[nm] = sf
+            if sf and ("fault" in sf or sf["no_uv_area_share"] > 0.01 or sf["bad_tangent_frames"]):
+                faults.append(("UVs lost or tangent frame broken (draws black and flat in game)", nm, sf))
     rows, wf = winding_world(n, lambda nm: nm in ours_shapes)
     if wf: faults.append(("winding", [r for r in rows if r["edges_against_neighbour"] or r["surfaces_facing_in"]]))
-    return {"faults": faults, "winding": rows}
+    return {"faults": faults, "winding": rows, "surface": surf}
 
 OURS = {"ebonymace.nif": {"EbonyMace:0"}, "1stpersonebonymace.nif": {"1stPersonEbonyMace:0"},
         "ebonywarhammer.nif": {"EbonyWarhammer:0"}, "1stpersonebonywarhammer.nif": {"1stPersonEbonyWarhammer:0"},
