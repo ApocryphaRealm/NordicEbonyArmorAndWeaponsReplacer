@@ -5,11 +5,13 @@
   * one of OUR shapes pointing at a texture outside textures\\nordwar\\companions\\ (the Wolf atlases);
   * one of OUR rigid shapes with more than 1% of its surface on faces with no UV area, or a tangent / bitangent that is
     not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer 1.1.0);
+  * one of OUR rigid shapes with a face whose three vertex normals all lean > 40 deg off it - a hard edge smoothed over
+    because PyNifly writes one normal per vertex (the warhammer's teeth drew as a flat disc, 1.1.0);
   * the arrow file without exactly Arrow1..Arrow6 as single shapes under ArrowQuiver;
   * winding: an edge walked the same way by both its faces, or a surface whose back sees the sky more than its front
     (the game draws one side; review renders draw both - shield 1.0.0) - measured in each shape's WORLD frame.
 """
-import os, sys, struct
+import os, sys, struct, math
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import niflib, winding, assemble as A
@@ -53,8 +55,15 @@ def surface_frame(n, b):
     dens = auv / np.maximum(a3, 1e-12); med = np.median(dens[a3 > 1e-6])
     flat = (a3 > 1e-6) & (dens < med * 1e-3)
     bad_t = int(((np.abs(np.linalg.norm(T, axis=1) - 1) > 0.1) | (np.abs(np.linalg.norm(Bt, axis=1) - 1) > 0.1)).sum())
+    # smoothed-over hard edges: a face whose three vertex normals ALL lean more than 40 degrees off the face itself - the
+    # vertices are shared with faces at a sharp angle, so the game lights it with an averaged normal (the warhammer's
+    # pyramid teeth drew as a flat disc, 1.1.0 2026-11-14; every Legacy of Ysgramor piece measures 0)
+    g = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); g = g / np.maximum(np.linalg.norm(g, axis=1), 1e-12)[:, None]
+    Nn = Nb[:, :3] / np.maximum(np.linalg.norm(Nb[:, :3], axis=1), 1e-9)[:, None]
+    smoothed = (np.einsum("fkj,fj->fk", Nn[F], g).max(1) < math.cos(math.radians(40))) & (a3 > 1e-6)
     return {"faces": int(len(F)), "no_uv_area_share": round(float(a3[flat].sum() / a3.sum()), 4), "no_uv_area_faces": int(flat.sum()),
-            "bad_tangent_frames": bad_t, "uv_range": [np.round(U.min(0), 4).tolist(), np.round(U.max(0), 4).tolist()]}
+            "bad_tangent_frames": bad_t, "smoothed_over_hard_edges": int(smoothed.sum()),
+            "uv_range": [np.round(U.min(0), 4).tolist(), np.round(U.max(0), 4).tolist()]}
 
 def winding_world(n, ours, seed=7):
     rng = np.random.default_rng(seed); shapes = {}
@@ -91,6 +100,8 @@ def check(built, vanilla, ours_shapes):
             sf = surface_frame(n, b); surf[nm] = sf
             if sf and ("fault" in sf or sf["no_uv_area_share"] > 0.01 or sf["bad_tangent_frames"]):
                 faults.append(("UVs lost or tangent frame broken (draws black and flat in game)", nm, sf))
+            if sf and sf.get("smoothed_over_hard_edges"):
+                faults.append(("hard edges smoothed over - vertices shared across a sharp edge (draws flat in game)", nm, sf))
     rows, wf = winding_world(n, lambda nm: nm in ours_shapes)
     if wf: faults.append(("winding", [r for r in rows if r["edges_against_neighbour"] or r["surfaces_facing_in"]]))
     return {"faults": faults, "winding": rows, "surface": surf}

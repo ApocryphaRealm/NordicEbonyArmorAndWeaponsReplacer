@@ -65,8 +65,89 @@ bpy.data.objects.remove(sh)
 REP["arrow_shaft"] = {"length": round(hi.y - lo.y, 3), "radius": round(rad, 4), "segments": NSEG,
                       "source": "waraxe_25 (the war axe's wrapped grip, axe1hebony)", "y": [round(lo.y, 2), round(hi.y, 2)]}
 
+def harden(o, deg=35.0):
+    """Hard edges the game can see: PyNifly exports ONE normal per vertex, averaged over every face sharing it, so a flat-
+    shaded face in Blender still draws smooth in game unless its vertices are its own. Split every edge sharper than deg
+    (the warhammer's pyramid teeth drew as a flat disc, 1.1.0 2026-11-14 - all their normals averaged to the face normal)."""
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    sharp = [e for e in bm.edges if len(e.link_faces) == 2 and e.calc_face_angle(0.0) > math.radians(deg)]
+    bmesh.ops.split_edges(bm, edges=sharp)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")   # loose points export with UV 0,0
+    for f in bm.faces: f.smooth = True
+    bm.to_mesh(o.data); bm.free(); o.data.update()
+    return len(sharp)
+
+# ---------------------------------------------------------------- the arrow's NOCK (owner 2026-11-14 06:48)
+# The paw pommel (waraxe_26 x0.3) read as a pommel, with nothing for the string. It becomes a real nock: a short black-
+# steel cylinder over the shaft's end with a SLOT across its end for the bowstring, and the war axe's gold collar
+# (waraxe_24, the piece round the quiver mouth) as a band where it meets the shaft. The slot runs along x: the string lies
+# across the arrow at right angles to the cock vane (vane 0 stands at +z, the other two at +-120 deg), as on a real
+# three-vane arrow. The three vanes move back until their rear ends meet the nock.
+old = bpy.data.objects["arrow_nock"]; nlo, nhi = obb(old)
+YEND = nlo.y                                         # the arrow's rear end (vanilla's nock end, ~ -61.5)
+RN = rad * 1.35; DN = 2 * rad                       # nock radius over the shaft; the shaft's diameter
+NL, SD, SW = 3.0 * DN, 1.3 * DN, 0.55 * DN           # nock length, slot depth, slot width
+NU0, NV0, NUW = 1656 / 2048, 1 - 360 / 2048, 32 / 2048   # plain black steel on axe1hebony (a knotwork panel's field: atlas
+                                                         # px 1656-1688 x 328-360; normal map flat, std < 1 of 255)
+bm = bmesh.new()
+bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=24, radius1=RN, radius2=RN, depth=NL)
+bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.radians(-90), 3, "X"))   # cone axis z -> y
+bmesh.ops.translate(bm, verts=bm.verts, vec=(cx, YEND + NL / 2, cz))
+me = bpy.data.meshes.new("arrow_nock_new"); bm.to_mesh(me); bm.free()
+nock = bpy.data.objects.new("arrow_nocknew", me); bpy.context.scene.collection.objects.link(nock)
+cut = bpy.data.objects.new("nock_slot", bpy.data.meshes.new("nock_slot")); bpy.context.scene.collection.objects.link(cut)
+bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
+bmesh.ops.scale(bm, verts=bm.verts, vec=(4 * RN, 2 * SD, SW))                 # across x, SD deep from the end, SW wide in z
+bmesh.ops.translate(bm, verts=bm.verts, vec=(cx, YEND, cz)); bm.to_mesh(cut.data); bm.free()
+bo = nock.modifiers.new("slot", "BOOLEAN"); bo.operation = "DIFFERENCE"; bo.solver = "EXACT"; bo.object = cut
+dg = bpy.context.evaluated_depsgraph_get(); me2 = bpy.data.meshes.new_from_object(nock.evaluated_get(dg))
+nock.modifiers.clear(); nock.data = me2; bpy.data.objects.remove(cut)
+bm = bmesh.new(); bm.from_mesh(nock.data); uvl = bm.loops.layers.uv.new("UVMap"); bm.normal_update()
+for f in bm.faces:                                   # box projection into the plain window
+    ax = max(range(3), key=lambda i: abs(f.normal[i])); a, b = [i for i in range(3) if i != ax]
+    for l in f.loops:
+        q = l.vert.co
+        o_ = (cx, YEND + NL / 2, cz)                # the nock fits in +-NL/2 of its centre on every axis
+        l[uvl].uv = (NU0 + (0.5 + (q[a] - o_[a]) / NL) * NUW, NV0 + (0.5 + (q[b] - o_[b]) / NL) * NUW)
+bm.to_mesh(nock.data); bm.free()
+nhard = harden(nock)
+assert len(nock.data.polygons) > 26, ("the slot boolean failed", len(nock.data.polygons))   # a capped 24-side tube has 26
+gap = [v.co for v in nock.data.vertices if v.co.y < YEND + 1e-4]
+assert gap and min(abs(p.z - cz) for p in gap) > SW / 2 - 1e-3, "the nock's end is not slotted"
+nock["tex"] = "axe1hebony"; nock["item"] = "arrow"; nock["from"] = nock["src"] = "new_nock"
+col = dup(P["waraxe_24"], "arrow_nockcollar"); c24 = Vector((0.645, 4.035, -0.035))
+RC = RN * 1.12
+xform(col, T(cx, YEND + NL, cz) @ S(2 * RC / 3.89, 0.24 * NL / 0.93, 2 * RC / 2.83) @ T(-c24.x, -c24.y, -c24.z))
+col["item"] = "arrow"
+if col.data.materials: nock.data.materials.append(col.data.materials[0])
+vanes = [o for o in GROUPS["arrow"] if o.name.startswith("arrow_vane")]
+vrear = min(min((o.matrix_world @ v.co).y for v in o.data.vertices) for o in vanes)
+DV = (YEND + NL) - vrear
+for o in vanes: xform(o, T(0, DV, 0))
+GROUPS["arrow"] = [o for o in GROUPS["arrow"] if o is not old] + [nock, col]
+bpy.data.objects.remove(old)
+REP["arrow_nock"] = {"end_y": round(YEND, 3), "length": round(NL, 3), "radius": round(RN, 3), "slot_depth": round(SD, 3),
+                     "slot_width": round(SW, 3), "slot_runs_along": "x (string across the arrow, square to the cock vane at +z)",
+                     "hard_edges_split": nhard, "faces": len(nock.data.polygons), "vanes_moved_back_by": round(-DV, 3),
+                     "vane_rear_y": round(vrear + DV, 3), "collar": "waraxe_24 (the war axe's gold collar)"}
+
 # ---------------------------------------------------------------- the quiver (round 2), then the warhammer (round 3)
 run_design("build_round2.py", True)
+# The quiver turned 180 degrees about its own long axis (owner 2026-11-14 06:48: "the quiver is inside out" - the other
+# side shows outward and the steel ring at the mouth faces the wearer's back, still pointing UP). Turned about the
+# scabbard body's centre line, so it keeps its place on the back. The six quiver arrows turn with it, so they sit in the
+# turned body as they sat in the approved one (left on vanilla's placements, three shafts showed through the body side)
+# and still leave by the mouth, which is on the turning axis.
+_qd, _e3 = NS["qd"].normalized(), NS["e3"].normalized(); _e2 = _qd.cross(_e3).normalized(); _m = NS["mouth"]
+_body = [NS["Q"][i] for i in range(len(NS["Q"])) if NS["Q"][i].name.startswith("q_dagger_")]
+_pts = [o.matrix_world @ v.co - _m for o in _body for v in o.data.vertices]
+_c = _m + _e2 * ((max(p.dot(_e2) for p in _pts) + min(p.dot(_e2) for p in _pts)) / 2) \
+        + _e3 * ((max(p.dot(_e3) for p in _pts) + min(p.dot(_e3) for p in _pts)) / 2)
+_turn = Matrix.Translation(_c) @ Matrix.Rotation(math.pi, 4, _qd) @ Matrix.Translation(-_c)
+for o in list(NS["Q"]) + list(NS["QA"]): xform(o, _turn)
+REP["quiver_turn"] = {"degrees": 180, "about": "the quiver body's long axis", "centre": [round(x, 3) for x in _c],
+                      "axis": [round(x, 4) for x in _qd], "body_pieces": len(_body),
+                      "quiver_arrow_pieces_turned_with_it": len(NS["QA"])}
 QUIVER_BODY, QUIVER_ARROWS, VARROWS = list(NS["Q"]), list(NS["QA"]), list(NS["varrows"])   # v1face reuses the names P / Q
 QFRAME = {k: NS[k].copy() for k in ("e3", "mouth", "qd")}
 sys.argv += ["ext=5.0", "art", "chamfer=0.8"] if "ext=5.0" not in sys.argv else []
@@ -77,6 +158,37 @@ for k, v in want.items():
     assert abs(face[k] - v) < 1e-6, ("warhammer face differs from the approved round 3", k, face[k], v)
 assert NS["TAG"] == "_ext_art_ch", NS["TAG"]
 REP["warhammer_face"] = face
+# The gnarled face in game (owner 2026-11-14 06:48): a flat tan disc with a diagonal smear, no teeth. Two causes, both
+# fixed here on the approved geometry:
+#  1. its UVs sat on a window of axe2hebony that is plain in the COLOUR map but not in the NORMAL map - a wavy ridge and
+#     a stripe edge run through it (normal map red std 35 of 255), drawn across the whole face as a diagonal smear. The
+#     face moves to the battle axe blade's damascus steel, where the normal map is flat (atlas px 1392-1464 x 368-440:
+#     red/green std 2-3 of 255, the same in Realistic Armor Overhaul's 4K copy of the atlas).
+#  2. PyNifly exports one normal per vertex: the teeth shared their vertices, so every normal averaged to the face
+#     normal and the pyramids lit as a flat disc. harden() gives each facet its own vertices.
+wf = bpy.data.objects["wh_face"]; OU0, OV0, OUW = face["uv_window"]
+FU0, FV0, FUW = 1392 / 2048, 1 - 440 / 2048, 72 / 2048
+nre = 0
+for d in wf.data.uv_layers.active.data:
+    u, v = d.uv
+    if OU0 - 1e-4 <= u <= OU0 + OUW + 1e-4 and OV0 - 1e-4 <= v <= OV0 + OUW + 1e-4:
+        d.uv = (FU0 + (u - OU0) / OUW * FUW, FV0 + (v - OV0) / OUW * FUW); nre += 1
+# the rim walls stand edge-on to the face's planar projection (no UV area, no tangent frame once their vertices are their
+# own): project each of them along its own normal instead, into the same window
+FR = face["radius"]; nwall = 0
+uvd = wf.data.uv_layers.active.data
+for p in wf.data.polygons:
+    uv = [uvd[li].uv.copy() for li in p.loop_indices]
+    if not all(FU0 - 1e-4 <= u <= FU0 + FUW + 1e-4 and FV0 - 1e-4 <= v <= FV0 + FUW + 1e-4 for u, v in uv): continue
+    area = abs(sum(uv[i].x * uv[(i + 1) % len(uv)].y - uv[(i + 1) % len(uv)].x * uv[i].y for i in range(len(uv)))) / 2
+    if area > 1e-9: continue
+    nrm = p.normal; tang = Vector((0, -nrm.z, nrm.y)).normalized()      # round the rim, square to the hammer axis (x)
+    for li in p.loop_indices:
+        q = wf.data.vertices[wf.data.loops[li].vertex_index].co - Vector((face["cut_x"] - face["ext"], NS["CY"], NS["CZ"]))
+        uvd[li].uv = (FU0 + FUW / 2 + q.dot(tang) / (2 * FR) * FUW, FV0 + FUW / 2 + q.x / (2 * FR) * FUW)
+    nwall += 1
+REP["warhammer_face_fix"] = {"uv_window_was": [OU0, OV0, OUW], "uv_window": [FU0, FV0, FUW], "corners_remapped": nre,
+                             "walls_reprojected": nwall, "hard_edges_split": harden(wf)}
 
 # ---------------------------------------------------------------- the parts are the approved design's parts
 exp = json.load(open(os.path.join(HERE, "parts_expected.json")))
@@ -107,7 +219,7 @@ for it, lst in ITEMS.items():
 REP["atlases"] = {it: sorted({o["tex"] for o in lst}) for it, lst in ITEMS.items()}
 
 # the quiver's facing, for the report: its front (+e3, where the fang plate sits) and mouth
-REP["quiver_frame"] = {"front_e3": [round(x, 3) for x in QFRAME["e3"]], "mouth": [round(x, 2) for x in QFRAME["mouth"]],
+REP["quiver_frame"] = {"fang_side_after_turn": [round(-x, 3) for x in QFRAME["e3"]], "mouth": [round(x, 2) for x in QFRAME["mouth"]],
                        "axis_mouth_to_bottom": [round(x, 3) for x in QFRAME["qd"]]}
 
 # ---------------------------------------------------------------- remove every design-only object
@@ -306,6 +418,26 @@ REP["arrowquiver_node_translation"] = list(qt)
 arrow = shapes_by_atlas("arrow", ITEMS["arrow"]); assert list(arrow) == ["axe1hebony"], list(arrow)
 quiver = shapes_by_atlas("quiver", ITEMS["quiver"])
 qarrows = {nm: join(lst, nm) for nm, lst in sorted(QA.items())}
+# every quiver-arrow point deeper than 1 unit past the mouth must be INSIDE the quiver: rays across the quiver axis in
+# 12 directions all meet the quiver's walls (a shaft showing through the body side lets one escape)
+def outside_points(arrows, body):
+    V, Pl, off = [], [], 0
+    for o in body:
+        V += [o.matrix_world @ v.co for v in o.data.vertices]; Pl += [[off + i for i in p.vertices] for p in o.data.polygons]; off += len(o.data.vertices)
+    tree = BVHTree.FromPolygons(V, Pl); qd, m = QFRAME["qd"].normalized(), QFRAME["mouth"]
+    a = qd.orthogonal().normalized(); b_ = qd.cross(a).normalized()
+    dirs = [a * math.cos(2 * math.pi * k / 12) + b_ * math.sin(2 * math.pi * k / 12) for k in range(12)]
+    out = {}
+    for o in arrows:
+        n = 0
+        for v in o.data.vertices:
+            p = o.matrix_world @ v.co
+            if (p - m).dot(qd) < 1.0: continue
+            if any(tree.ray_cast(p, d, 100.0)[0] is None for d in dirs): n += 1
+        out[o.name] = n
+    return out
+REP["quiver_arrows_outside_body"] = outside_points(list(qarrows.values()), list(quiver.values()))
+print("QUIVER ARROWS OUTSIDE", REP["quiver_arrows_outside_body"])   # measured, reported; not yet a gate (see the 1.1.0 changelog)
 REP["orient"].update(orient_outward([arrow["axe1hebony"]]))
 REP["orient"].update(orient_outward(list(quiver.values()) + list(qarrows.values())))
 export_single(arrow["axe1hebony"], os.path.join(OUTD, "arrow.nif")); dump_points([arrow["axe1hebony"]], "arrow")

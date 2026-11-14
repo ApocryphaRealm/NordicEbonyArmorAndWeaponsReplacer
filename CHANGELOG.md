@@ -20,6 +20,8 @@
 - Untested in game: the quiver on the back (which side faces out), the bow draw and the six quiver arrows disappearing as arrows are used.
 
 ### Fixed
+- Quiver: turned 180 degrees about its long axis so the decorated side faces out and the steel ring (still pointing up) sits against the wearer's back. The six quiver arrows turn with it. Arrows: the pommel-shaped end is now a slotted black-steel nock with a gold collar, the slot across the arrow square to the cock vane, and the vanes moved back to meet the nock.
+- Warhammer: the toothed striking face drew in game as a flat tan disc with a diagonal smear. Its texture window held a ridge in the normal map, and the teeth shared vertices so their lighting averaged flat. The face now uses flat-normal blade steel and every tooth facet has its own vertices. A build check now fails any shape with a hard edge smoothed over.
 - The warhammer's round extension, gold lip and toothed striking face drew black and flat in game: their UVs were lost when the head's pieces were joined into one shape (the new pieces' UV layer had another name), so they sampled one corner texel with no tangent frame. Every piece now carries one UV layer under one name before the join, and the build fails if a shape has faces with no UV area or a broken tangent frame.
 
 ## 1.0.0

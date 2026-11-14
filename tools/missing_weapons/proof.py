@@ -61,13 +61,17 @@ def load(path, only_under=None):
         l = bpy.data.lights.new(L, "SUN"); l.energy = e; lo = bpy.data.objects.new(L, l); lo.rotation_euler = rot; sc.collection.objects.link(lo)
     return objs
 
-def shoot(objs, png, yaw, pitch, W=700, H=1100):
+def shoot(objs, png, yaw, pitch, W=700, H=1100, region=None, flip=False):
     dg = bpy.context.evaluated_depsgraph_get(); P = []
     for o in objs:
         e = o.evaluated_get(dg); me = e.to_mesh(); P += [e.matrix_world @ v.co for v in me.vertices]; e.to_mesh_clear()
+    if region:                                     # (axis, "min"|"max", depth): frame only the points that far from that end
+        ax, end, depth = region; lo, hi = min(p[ax] for p in P), max(p[ax] for p in P)
+        P = [p for p in P if (p[ax] <= lo + depth if end == "min" else p[ax] >= hi - depth)]
     yaw, pitch = math.radians(yaw), math.radians(pitch)
     fwd = Vector((math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)))   # camera sits along +fwd
-    right = Vector((0, 1, 0)).cross(fwd).normalized(); up = fwd.cross(right)
+    right = Vector((0, 1, 0)).cross(fwd).normalized() if abs(fwd.y) < 0.999 else Vector((1, 0, 0)); up = fwd.cross(right)
+    if flip: right, up = -right, -up
     xs = [p.dot(right) for p in P]; ys = [p.dot(up) for p in P]; zs = [p.dot(fwd) for p in P]
     cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
     cam = bpy.data.cameras.new("c"); cam.type = "ORTHO"; cam.clip_start = 1; cam.clip_end = 5000
@@ -79,10 +83,38 @@ def shoot(objs, png, yaw, pitch, W=700, H=1100):
     sc.render.resolution_x, sc.render.resolution_y = W, H; sc.render.filepath = png
     bpy.ops.render.render(write_still=True); bpy.data.objects.remove(co)
 
+def rake(d):
+    """one grazing sun travelling along d, the ambient turned down: relief shows, a flat-lit surface reads flat"""
+    for o in [o for o in bpy.data.objects if o.type == "LIGHT"]: o.hide_render = True
+    l = bpy.data.lights.new("rake", "SUN"); l.energy = 5.0; lo = bpy.data.objects.new("rake", l); sc.collection.objects.link(lo)
+    lo.rotation_mode = "QUATERNION"; lo.rotation_quaternion = Vector(d).normalized().to_track_quat("-Z", "Y")
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.12
+    return lo
+
+def unrake(lo):
+    bpy.data.objects.remove(lo); w.node_tree.nodes["Background"].inputs["Strength"].default_value = 1.0
+    for o in [o for o in bpy.data.objects if o.type == "LIGHT"]: o.hide_render = False
+
+# close-ups (2026-11-14 06:48 fixes): name, yaw, pitch, region, raking light travel direction (None = the three suns), flip
+CLOSE = {"warhammer": [("face_rake", -90, 0, (0, "min", 3.0), (0.2, -0.7, 0.7), False),
+                       ("face_profile", 0, 0, (0, "min", 6.0), (0.2, -0.7, -0.7), False),
+                       ("face_tq", -55, 20, (0, "min", 6.0), (0.25, -0.6, 0.75), False)],
+         "arrow": [("nock", 30, 18, (1, "min", 6.0), None, False), ("nock_end", 0, -89, (1, "min", 1.0), None, False),
+                   ("nock_side", 90, 0, (1, "min", 6.0), None, False)],
+         # ebonyarrow.nif's ArrowQuiver frame on the vanilla skeleton's QUIVER node: local -z points INTO the wearer's back,
+         # -y is up (the mouth). "worn_out" is what is seen from behind the wearer; "worn_body" the side against his back
+         "quiver": [("worn_out", 0, 0, None, None, True), ("worn_body", 180, 0, None, None, True), ("worn_side", 90, 0, None, None, True)]}
+
 for name, fn, _ in PIECES:
     if ONLY != [""] and name not in ONLY: continue
     objs = load(os.path.join(SRC, fn))
+    if name == "quiver":                           # the quiver as worn: its body and six arrows, not the loose arrow beside it
+        for o in [o for o in objs if o.name.split(".")[0] == "Arrow:0"]: o.hide_render = True; objs.remove(o)
     print("PIECE", name, [o.name for o in objs])
     for view, yaw, pitch in (("front", 0, 0), ("back", 180, 0), ("tq", 40, 20)):
         shoot(objs, os.path.join(OUT, "%s_%s.png" % (name, view)), yaw, pitch)
+    for view, yaw, pitch, region, d, flip in CLOSE.get(name, []):
+        lo = rake(d) if d else None
+        shoot(objs, os.path.join(OUT, "%s_%s.png" % (name, view)), yaw, pitch, W=900, H=900, region=region, flip=flip)
+        if lo: unrake(lo)
 print("PROOF DONE")
