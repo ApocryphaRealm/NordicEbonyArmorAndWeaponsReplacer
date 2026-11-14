@@ -77,6 +77,129 @@ def harden(o, deg=35.0):
     bm.to_mesh(o.data); bm.free(); o.data.update()
     return len(sharp)
 
+def cap_holes(o):
+    """Close every open boundary of a piece. The pieces are cut from the Wolf weapons, where an open end sat hidden inside
+    the next piece (a blade's base in its guard, the axe spike's foot in the head); re-used elsewhere the hole shows, and
+    the game draws one side of a triangle, so through it the far wall's BACK is seen - culled - and the light behind
+    comes through (bow grip and arrowhead, owner 2026-11-14 07:15). Each cap gets its own vertices (a hard edge the game
+    can see) and a planar UV window the size of its rim's UV spread, centred on it - never zero UV area."""
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    lay = bm.faces.layers.int.get("neaw_cap") or bm.faces.layers.int.new("neaw_cap")     # (a new layer drops face handles)
+    rim = [e for e in bm.edges if e.is_boundary]
+    if not rim: bm.free(); return 0
+    uvl = bm.loops.layers.uv.active
+    old = set(bm.faces)
+    bmesh.ops.holes_fill(bm, edges=rim, sides=0)
+    key = lambda f: frozenset(tuple(round(c, 3) for c in v.co) for v in f.verts)
+    sets = {key(f) for f in old}          # a lone loose triangle's own rim "fills" as its reverse twin: drop those
+    nk_ = {}
+    for f in bm.faces:
+        if f not in old: nk_.setdefault(key(f), []).append(f)
+    # ... and two caps on one rim (a sliver whose rim pinches at a vertex) are a back-to-back pair: drop both
+    bmesh.ops.delete(bm, geom=[f for k_, fs in nk_.items() for f in fs if k_ in sets or len(fs) > 1], context="FACES_ONLY")
+    new = [f for f in bm.faces if f not in old]
+    caps = []
+    for f in new:                                  # the rim's UVs, per cap
+        rim_uv = [m[uvl].uv.copy() for l in f.loops for m in l.vert.link_loops if m.face not in new]
+        cu = sum(rim_uv, Vector((0, 0))) / max(1, len(rim_uv))
+        span = max(max(u.x for u in rim_uv) - min(u.x for u in rim_uv), max(u.y for u in rim_uv) - min(u.y for u in rim_uv), 2e-3) if rim_uv else 2e-3
+        ext = max((l.vert.co - f.calc_center_median()).length for l in f.loops) or 1e-6
+        caps.append((cu, span, ext, set(f.verts)))
+    bmesh.ops.triangulate(bm, faces=new, quad_method="BEAUTY", ngon_method="BEAUTY"); tri = [f for f in bm.faces if f not in old]
+    # a cap folded over on itself (a twisted 4-edge rim on a plate's thin edge, triangulated across the wrong diagonal: its
+    # two triangles face opposite ways, one of them always inward) takes the other diagonal
+    for _ in range(3):
+        folded = [e for e in bm.edges if len(e.link_faces) == 2 and all(f not in old for f in e.link_faces)
+                  and e.link_faces[0].normal.dot(e.link_faces[1].normal) < -0.2]
+        if not folded: break
+        bmesh.ops.rotate_edges(bm, edges=folded, use_ccw=False)
+        for f in bm.faces: f.normal_update()
+    tk = {}
+    for f in bm.faces:
+        if f not in old: tk.setdefault(key(f), []).append(f)
+    # a rim that passes one point twice triangulates into a back-to-back pair or a zero-area sliver: dropped
+    bmesh.ops.delete(bm, geom=[f for k_, fs in tk.items() for f in fs if len(fs) > 1 or k_ in sets or f.calc_area() < 1e-9],
+                     context="FACES_ONLY")
+    tri = [f for f in bm.faces if f not in old]
+    for f in tri: f[lay] = 1
+    for f in tri:                                  # each triangle projected along its OWN normal: never zero UV area
+        cu, span, ext, _ = next(c for c in caps if set(f.verts) <= c[3])
+        f.normal_update(); n_ = f.normal if f.normal.length > 1e-9 else Vector((0, 0, 1))
+        a_ = n_.orthogonal().normalized(); b_ = n_.cross(a_).normalized(); c_ = f.calc_center_median()
+        for l in f.loops:
+            d_ = l.vert.co - c_
+            l[uvl].uv = (cu.x + 0.5 * span * d_.dot(a_) / ext, cu.y + 0.5 * span * d_.dot(b_) / ext)
+    bmesh.ops.split_edges(bm, edges=[e for e in bm.edges if len(e.link_faces) == 2 and
+                                     (e.link_faces[0] in old) != (e.link_faces[1] in old)])
+    bm.to_mesh(o.data); bm.free(); o.data.update()
+    return len(rim)
+
+def select_only(o):
+    for x in bpy.context.scene.objects:      # select_all(DESELECT) leaves hidden objects selected, and a join takes them
+        if x.select_get(): x.select_set(False)
+    o.hide_set(False); o.hide_viewport = False
+    o.select_set(True); bpy.context.view_layer.objects.active = o
+
+def join(objs, name):
+    objs = list(objs)
+    for o in objs:
+        o.data = o.data.copy()
+        # ONE UV layer under ONE name on every piece before the join: Blender's join matches UV layers BY NAME, so a piece
+        # whose layer has another name (build_v1face.py's new face and extension call theirs "UV", PyNifly's imports
+        # "UVMap") lands in a second layer, and the exported first layer holds (0, 0) for all its corners - the warhammer's
+        # extension and face drew the atlas's corner texel with no tangent frame: black and flat in game (1.1.0, 2026-11-14)
+        uvs = o.data.uv_layers; assert len(uvs) >= 1, (name, o.name, "a piece without UVs")
+        keep_uv = uvs.active.name
+        for nm in [l.name for l in uvs if l.name != keep_uv]: uvs.remove(uvs[nm])
+        uvs[keep_uv].name = "UVMap"
+    select_only(objs[0])
+    for o in objs[1:]: o.hide_set(False); o.hide_viewport = False; o.select_set(True)
+    nsel = sum(1 for x in bpy.context.scene.objects if x.select_get())
+    assert nsel == len(objs), (name, 'selected', nsel, 'meant', len(objs))
+    if len(objs) > 1: bpy.ops.object.join()
+    o = bpy.context.view_layer.objects.active; o.name = name; o.data.name = name
+    assert [l.name for l in o.data.uv_layers] == ["UVMap"], (name, "UV layers after the join", [l.name for l in o.data.uv_layers])
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
+    bm.to_mesh(o.data); bm.free(); o.data.update()
+    return o
+
+def weld_join(objs, name, **props):
+    """pieces that meet along their rims (a fang cut into five parts, an arrowhead in four) joined and welded into ONE
+    piece before cap_holes: capped apart, their caps met back to back inside and the welded edges they share had three or
+    more faces - the surface could not be told inside from outside (the arrowhead came out inside-out, 1.1.0 2026-11-14)"""
+    tex = {o["tex"] for o in objs}; assert len(tex) == 1, (name, tex)
+    j = join(list(objs), name)
+    bm = bmesh.new(); bm.from_mesh(j.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    grp = {}
+    for f in bm.faces: grp.setdefault(frozenset(f.verts), []).append(f)
+    kill = []                             # faces the weld made coincident: a wall between two pieces (both go), or a repeat
+    for fs in grp.values():
+        if len(fs) > 1:
+            for f in fs: f.normal_update()
+            same = all(f.normal.dot(fs[0].normal) > 0 for f in fs[1:])
+            kill += fs[1:] if same else fs
+    bmesh.ops.delete(bm, geom=kill, context="FACES_ONLY"); bm.to_mesh(j.data); bm.free(); j.data.update()
+    j["tex"] = tex.pop()
+    for k, v in props.items(): j[k] = v
+    return j
+
+def double_caps(o):
+    """every cap_holes cap made two-sided: a reversed twin on its own vertices. A cap sits where the piece's inside and
+    outside meet several pieces at once (the arrowhead's four blades at its foot), where no ray vote can tell its outside;
+    two-sided, it covers the hole from both sides whichever way it was wound. Run AFTER orient_outward (which would turn
+    the twin back round to match). The pieces stay hard-edged: the twin's vertices are its own."""
+    bm = bmesh.new(); bm.from_mesh(o.data); lay = bm.faces.layers.int.get("neaw_cap")
+    if lay is None: bm.free(); return 0
+    caps = [f for f in bm.faces if f[lay] == 1]
+    if not caps: bm.free(); return 0
+    geom = bmesh.ops.duplicate(bm, geom=caps)["geom"]
+    twins = [g for g in geom if isinstance(g, bmesh.types.BMFace)]
+    bmesh.ops.reverse_faces(bm, faces=twins)
+    for f in twins: f[lay] = 2
+    bm.normal_update(); bm.to_mesh(o.data); bm.free(); o.data.update()
+    return len(twins)
+
 # ---------------------------------------------------------------- the arrow's NOCK (owner 2026-11-14 06:48)
 # The paw pommel (waraxe_26 x0.3) read as a pommel, with nothing for the string. It becomes a real nock: a short black-
 # steel cylinder over the shaft's end with a SLOT across its end for the bowstring, and the war axe's gold collar
@@ -130,6 +253,16 @@ REP["arrow_nock"] = {"end_y": round(YEND, 3), "length": round(NL, 3), "radius": 
                      "slot_width": round(SW, 3), "slot_runs_along": "x (string across the arrow, square to the cock vane at +z)",
                      "hard_edges_split": nhard, "faces": len(nock.data.polygons), "vanes_moved_back_by": round(-DV, 3),
                      "vane_rear_y": round(vrear + DV, 3), "collar": "waraxe_24 (the war axe's gold collar)"}
+# every arrow piece closed before the quiver copies them: the arrowhead (the war axe's top spike) was open at its foot and
+# the vanes at their roots - light showed through the nocked arrow (owner 2026-11-14 07:15)
+# (the head and each vane welded whole first; the shaft's four stacked lengths close on each other, the nock and the head)
+_ga = GROUPS["arrow"]
+for nm_, pre in [("arrow_head", "arrow_waraxe_")] + [("arrow_vane%d" % k, "arrow_vane%d_" % k) for k in range(3)]:
+    pcs = [o for o in _ga if o.name.startswith(pre)]; assert pcs, pre
+    for o in pcs: _ga.remove(o)
+    _ga.append(weld_join(pcs, nm_, item="arrow"))
+REP["arrow_holes_capped"] = {o.name: n_ for o in _ga if o.name.startswith(("arrow_head", "arrow_vane")) for n_ in [cap_holes(o)] if n_}
+REP["arrow_welded_hard_edges_split"] = {o.name: harden(o) for o in _ga if o.name.startswith(("arrow_head", "arrow_vane"))}   # the weld smoothed the pieces' seams
 
 # ---------------------------------------------------------------- the quiver (round 2), then the warhammer (round 3)
 run_design("build_round2.py", True)
@@ -223,7 +356,8 @@ REP["quiver_frame"] = {"fang_side_after_turn": [round(-x, 3) for x in QFRAME["e3
                        "axis_mouth_to_bottom": [round(x, 3) for x in QFRAME["qd"]]}
 
 # ---------------------------------------------------------------- remove every design-only object
-keep = set(o for lst in ITEMS.values() for o in lst) | set(o for lst in QA.values() for o in lst)
+LOOP_SRC = dup(P["waraxe_25"], "bow_loop_src"); LOOP_SRC.hide_render = True   # the nock loops' cord (bow section)
+keep = set(o for lst in ITEMS.values() for o in lst) | set(o for lst in QA.values() for o in lst) | {LOOP_SRC}
 for o in list(bpy.data.objects):
     if o not in keep: bpy.data.objects.remove(o)
 
@@ -231,36 +365,6 @@ def import_vanilla(name):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.pynifly(filepath=os.path.join(NS["VAN"], name), import_collisions=False)
     return [o for o in bpy.data.objects if o not in before]
-
-def select_only(o):
-    for x in bpy.context.scene.objects:      # select_all(DESELECT) leaves hidden objects selected, and a join takes them
-        if x.select_get(): x.select_set(False)
-    o.hide_set(False); o.hide_viewport = False
-    o.select_set(True); bpy.context.view_layer.objects.active = o
-
-def join(objs, name):
-    objs = list(objs)
-    for o in objs:
-        o.data = o.data.copy()
-        # ONE UV layer under ONE name on every piece before the join: Blender's join matches UV layers BY NAME, so a piece
-        # whose layer has another name (build_v1face.py's new face and extension call theirs "UV", PyNifly's imports
-        # "UVMap") lands in a second layer, and the exported first layer holds (0, 0) for all its corners - the warhammer's
-        # extension and face drew the atlas's corner texel with no tangent frame: black and flat in game (1.1.0, 2026-11-14)
-        uvs = o.data.uv_layers; assert len(uvs) >= 1, (name, o.name, "a piece without UVs")
-        keep_uv = uvs.active.name
-        for nm in [l.name for l in uvs if l.name != keep_uv]: uvs.remove(uvs[nm])
-        uvs[keep_uv].name = "UVMap"
-    select_only(objs[0])
-    for o in objs[1:]: o.hide_set(False); o.hide_viewport = False; o.select_set(True)
-    nsel = sum(1 for x in bpy.context.scene.objects if x.select_get())
-    assert nsel == len(objs), (name, 'selected', nsel, 'meant', len(objs))
-    if len(objs) > 1: bpy.ops.object.join()
-    o = bpy.context.view_layer.objects.active; o.name = name; o.data.name = name
-    assert [l.name for l in o.data.uv_layers] == ["UVMap"], (name, "UV layers after the join", [l.name for l in o.data.uv_layers])
-    bm = bmesh.new(); bm.from_mesh(o.data)
-    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
-    bm.to_mesh(o.data); bm.free(); o.data.update()
-    return o
 
 # ---------------------------------------------------------------- face orientation (Truly Nordic's orient_outward)
 def orient_outward(objs, rays=12, samples=300, seed=7):
@@ -440,6 +544,7 @@ REP["quiver_arrows_outside_body"] = outside_points(list(qarrows.values()), list(
 print("QUIVER ARROWS OUTSIDE", REP["quiver_arrows_outside_body"])   # measured, reported; not yet a gate (see the 1.1.0 changelog)
 REP["orient"].update(orient_outward([arrow["axe1hebony"]]))
 REP["orient"].update(orient_outward(list(quiver.values()) + list(qarrows.values())))
+REP["arrow_cap_twins"] = {o.name: double_caps(o) for o in [arrow["axe1hebony"]] + list(qarrows.values())}
 export_single(arrow["axe1hebony"], os.path.join(OUTD, "arrow.nif")); dump_points([arrow["axe1hebony"]], "arrow")
 for o in list(quiver.values()) + list(qarrows.values()):     # into the ArrowQuiver node's frame (identity shape transforms)
     o.data.transform(Matrix.Translation((-qt[0], -qt[1], -qt[2]))); o.data.update()
@@ -454,6 +559,144 @@ arm = [o for o in van if o.type == "ARMATURE"][0]; vm = [o for o in van if o.typ
 heads = {b.name: arm.matrix_world @ b.head_local for b in arm.data.bones}
 p1, p2 = heads["Bow_StringBone1"], heads["Bow_StringBone2"]      # lower (-y) and upper (+y) string pivots
 string = [o for o in bow if o.name.startswith("bow_string")]; assert len(string) == 1, [o.name for o in string]
+
+# ---- the bow in game (owner 2026-11-14 07:15), three faults fixed on the approved design, in its own frame (limbs along
+# y, the string at -x, the back at +x, the limbs' width along z):
+# 1. LIGHT THROUGH THE HANDLE: the pieces did not meet - a gap between each end of the grip and its guard band, and
+#    between each guard and its limb (the scaled sword grip and guard were shorter than the space the design set them
+#    in) - and the spurs (the war axe's fang, cut in half) and the limbs' bases were open shells. The spurs and limbs
+#    are capped; the grip is stretched into its guards and each limb's base pulled down into its guard.
+# 2. THE ARROW REST: the upper guard is the sword's crossguard - its arms stood out 3.3 to each side of the bow, where the
+#    arrow lies beside the riser (vanilla's riser is no wider than 1.6 / 2.0 there). Its arms are drawn in to vanilla's
+#    width on the upper (+y, Bow_StringBone2) side: the arrow shelf. The lower guard keeps its arms.
+# 3. STRING NOCKS: the string met the bare metal at the tip. Each limb gets a nock 2.6 below its point - a round notch
+#    in both edges (the limb's width drawn in round the nock, its depth the groove's radius) - the string ends there on the belly, and a loop of the same wrapped cord (the war axe's grip)
+#    goes round the limb through both grooves. The limb tip now stands 2.6 past the string's end, as vanilla's does
+#    (2.9); the string end stays on vanilla's string-bone pivot (the fit below), so the drawn string turns about the nock.
+BREP = REP.setdefault("bow_fix", {})
+# each spur's five fang pieces, and each limb's six blade pieces, meet along their rims: welded into one piece first, so
+# only the real holes are capped (see weld_join)
+for s_ in (1, -1):
+    for pre, nm_, props in (("bow_spur%d_" % s_, "bow_spur%d_fang" % s_, {"item": "bow"}),
+                            ("bow_limb%d_" % s_, "bow_limb%d_blade" % s_, {"item": "bow", "limb": s_})):
+        pcs = [o for o in bow if o.name.startswith(pre)]; assert pcs, pre
+        for o in pcs: bow.remove(o)
+        bow.append(weld_join(pcs, nm_, **props))
+BREP["holes_capped"] = {o.name: n_ for o in bow if o.name.startswith(("bow_spur", "bow_limb", "bow_string")) for n_ in [cap_holes(o)] if n_}
+BREP["welded_hard_edges_split"] = {o.name: harden(o) for o in bow if o.name.startswith(("bow_spur", "bow_limb"))}
+grip_o = [o for o in bow if o.name == "bow_grip"][0]
+def side_objs(prefix, s): return [o for o in bow if o.name.startswith("%s%d_" % (prefix, s))]
+def ys(objs, s): return [s * v.co.y for o in objs for v in o.data.vertices]
+for s in (1, -1):
+    gd_, lm_ = side_objs("bow_guard", s), side_objs("bow_limb", s)
+    g0, g1 = min(ys(gd_, s)), max(ys(gd_, s)); e = max(ys([grip_o], s)); lb = min(ys(lm_, s))
+    # the band is arched: its top edge is lowest at its middle (over the bow's back and belly). Grip end and limb base meet
+    # 0.25 below that, inside the band all round
+    gmid = max(s * v.co.y for o in gd_ for v in o.data.vertices if abs(v.co.z) < 0.6)
+    tl = gmid - 0.25; tg = tl; R_ = 2.0
+    for v in grip_o.data.vertices:
+        if s * v.co.y > 0: v.co.y = v.co.y * tg / e
+    for o in lm_:
+        for v in o.data.vertices:
+            u = s * v.co.y
+            if u < lb + R_: v.co.y = s * (tl + (u - lb) * (lb + R_ - tl) / R_)
+        o.data.update()
+    if s == 1:      # the upper limb's base, now down in the band where the arrow passes, no wider than the shelf (1.95)
+        zb = max(abs(v.co.z) for o in lm_ for v in o.data.vertices if v.co.y < g1)
+        for o in lm_:
+            for v in o.data.vertices:
+                k = min(1.0, max(0.0, (v.co.y - g1) / 0.8))
+                v.co.z *= (1.95 / zb) * (1 - k) + k if zb > 1.95 else 1.0
+            o.data.update()
+        BREP["upper_limb_base_half_width_was"] = round(zb, 3)
+        zg = max(abs(v.co.z) for v in grip_o.data.vertices if v.co.y > tg - 1.5)    # the grip's flared top, likewise
+        for v in grip_o.data.vertices:
+            k = min(1.0, max(0.0, (v.co.y - (tg - 2.0)) / 1.0))
+            if zg > 1.95: v.co.z *= 1 - k + k * 1.95 / zg
+        BREP["grip_top_half_width_was"] = round(zg, 3)
+    BREP["gaps_side_%+d" % s] = {"grip_end_was": round(e, 3), "band_top_at_middle": round(gmid, 3), "guard": [round(g0, 3), round(g1, 3)], "limb_base_was": round(lb, 3),
+                                 "grip_end_now": round(tg, 3), "limb_base_now": round(tl, 3)}
+grip_o.data.update()
+# the arrow shelf: the upper guard's arms drawn in to vanilla's riser width (|z| <= 1.95)
+ZSHELF = 1.95
+ug = side_objs("bow_guard", 1); zmax = max(abs(v.co.z) for o in ug for v in o.data.vertices)
+for o in ug:
+    for v in o.data.vertices: v.co.z *= ZSHELF / zmax
+    o.data.update()
+BREP["arrow_shelf"] = {"upper_guard_half_width_was": round(zmax, 3), "now": ZSHELF}
+
+# string nocks
+st = string[0]; SV = [v.co for v in st.data.vertices]
+sxc = sum(v.x for v in SV) / len(SV); szc = sum(v.z for v in SV) / len(SV)
+RS = max(math.hypot(v.x - sxc, v.z - szc) for v in SV)           # the cord's radius
+DNOCK, RG = 2.6, 1.3 * RS                                         # nock below the point; groove radius = depth
+limbs = [o for o in bow if o.get("limb") is not None]
+NOCK = {}
+for s in (1, -1):
+    lm_ = [o for o in limbs if o["limb"] == s]
+    ytip = max(ys(lm_, s)); ysn = ytip - DNOCK
+    for o in lm_:                                                  # rings of vertices across the groove
+        bm = bmesh.new(); bm.from_mesh(o.data)
+        for k in range(-8, 9):
+            g = bm.verts[:] + bm.edges[:] + bm.faces[:]
+            bmesh.ops.bisect_plane(bm, geom=g, plane_co=(0, s * (ysn + k * RG / 4), 0), plane_no=(0, 1, 0))
+        bm.to_mesh(o.data); bm.free(); o.data.update()
+    sec = [v.co for o in lm_ for v in o.data.vertices if abs(s * v.co.y - ysn) < 1e-3]
+    xa, xb, w = min(p.x for p in sec), max(p.x for p in sec), max(abs(p.z) for p in sec)
+    assert w > 2.5 * RG, ("the limb is too narrow for a nock", s, w, RG)
+    moved = 0
+    for o in lm_:
+        for v in o.data.vertices:
+            du = (s * v.co.y - ysn) / RG
+            if abs(du) >= 1: continue
+            v.co.z *= 1 - RG * math.sqrt(1 - du * du) / w; moved += 1    # the outline pinched by a round notch each side
+        o.data.update()
+    NOCK[s] = {"y": ysn, "xa": xa, "xb": xb, "w": w, "groove_floor": w - RG, "vertices_grooved": moved, "tip": ytip}
+# the string: ends on the belly at the two nocks
+xstr = min(NOCK[1]["xa"], NOCK[-1]["xa"]) - RS
+ylo_s, yhi_s = min(v.y for v in SV), max(v.y for v in SV)
+for v in st.data.vertices:
+    v.co.x += xstr - sxc
+    v.co.y = v.co.y * (NOCK[1]["y"] / yhi_s if v.co.y > 0 else NOCK[-1]["y"] / -ylo_s)
+st.data.update()
+# the loops: the war axe's wrapped grip, as thin as the string, bent round the limb through both grooves
+def loop_path(xc, hx, hz, y, n=256, q=0.4):
+    pts = []
+    for i in range(n):
+        th = 2 * math.pi * i / n; c_, s_ = math.cos(th), math.sin(th)
+        pts.append(Vector((xc + hx * math.copysign(abs(c_) ** q, c_), y, hz * math.copysign(abs(s_) ** q, s_))))
+    L = [0.0]
+    for i in range(1, n + 1): L.append(L[-1] + (pts[i % n] - pts[i - 1]).length)
+    return pts, L
+for s in (1, -1):
+    nk = NOCK[s]; hz = nk["groove_floor"] + RS                          # in the grooves
+    hx = (nk["xb"] + RS - xstr) / 2; xc = xstr + hx                    # belly side through the string's axis, back side on the metal
+    pts, L = loop_path(xc, hx, hz, s * nk["y"]); per = L[-1]
+    lp = LOOP_SRC.copy(); lp.data = LOOP_SRC.data.copy(); lp.name = "bow_nockloop%d" % s; bpy.context.scene.collection.objects.link(lp)
+    lp.hide_render = False; c = Vector((0.63, -2.8, -0.03))
+    xform(lp, S(0.11, per / 12.83, 0.11) @ T(-c.x, -c.y, -c.z))
+    bm = bmesh.new(); bm.from_mesh(lp.data)
+    for _ in range(12):
+        long_ = [e for e in bm.edges if abs(e.verts[0].co.y - e.verts[1].co.y) > per / 96]
+        if not long_: break
+        bmesh.ops.subdivide_edges(bm, edges=long_, cuts=1, use_grid_fill=True)
+    bm.to_mesh(lp.data); bm.free()
+    LV = lp.data.vertices; ly0 = min(v.co.y for v in LV); ly1 = max(v.co.y for v in LV)
+    n_ = len(pts)
+    for v in LV:
+        a_ = (v.co.y - ly0) / (ly1 - ly0) * per
+        i = max(0, min(n_ - 1, next((k for k in range(1, n_ + 1) if L[k] >= a_), n_) - 1))
+        f_ = (a_ - L[i]) / max(1e-9, L[i + 1] - L[i]); q0, q1 = pts[i], pts[(i + 1) % n_]    # (p1 / p2 are the pivots)
+        pos = q0.lerp(q1, f_); tan = (q1 - q0).normalized(); nrm = tan.cross(Vector((0, 1, 0))).normalized()
+        if (pos - Vector((xc, pos.y, 0))).dot(nrm) < 0: nrm = -nrm
+        v.co = pos + nrm * v.co.x + Vector((0, 1, 0)) * v.co.z
+    lp.data.update(); lp["item"] = "bow"; bow.append(lp)
+    bm = bmesh.new(); bm.from_mesh(lp.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)   # its two ends meet: closed
+    nk["loop_open_edges"] = sum(1 for e in bm.edges if e.is_boundary); bm.to_mesh(lp.data); bm.free(); lp.data.update()
+    nk.update({"loop": lp.name, "loop_perimeter": per, "loop_centre_x": xc, "loop_half_x": hx, "loop_half_z": hz})
+bpy.data.objects.remove(LOOP_SRC)
+BREP["nocks"] = {"cord_radius": RS, "groove_radius": RG, "below_point": DNOCK, "string_x": xstr,
+                 "sides": {str(s): {k: (round(v, 3) if isinstance(v, float) else v) for k, v in NOCK[s].items()} for s in NOCK}}
 # the string is the war axe's grip stretched tip to tip, with vertices only near its ends: cut it into short lengths, so
 # each half can bend about its own pivot when the bow is drawn (vanilla's string: 118 vertices along its length)
 bm = bmesh.new(); bm.from_mesh(string[0].data)
@@ -500,6 +743,7 @@ for o in bow:
     bpy.ops.object.modifier_apply(modifier=m.name)
 bshapes = shapes_by_atlas("bow", bow)
 REP["orient"].update(orient_outward(list(bshapes.values())))
+BREP["cap_twins"] = {o.name: double_caps(o) for o in bshapes.values()}
 dom = {}
 for tex, o in bshapes.items():
     d = {}
