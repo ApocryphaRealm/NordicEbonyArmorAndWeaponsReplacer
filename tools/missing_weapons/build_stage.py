@@ -336,6 +336,8 @@ for pid, e in exp.items():
 extra = sorted(set(P) - set(exp))
 assert not bad and not extra, ("loose parts differ from the approved design's", bad[:5], extra[:5])
 REP["parts_checked"] = len(exp)
+import collar, numpy as np
+BAND_UV = collar.BandUV(P["sword_06"])   # the crossguard's knot panel, for the bow's collars
 
 ITEMS = {"mace": list(GROUPS["mace"]), "warhammer": list(NS["WH"]), "bow": list(GROUPS["bow"]), "arrow": list(GROUPS["arrow"]),
          "quiver": QUIVER_BODY}
@@ -566,9 +568,9 @@ string = [o for o in bow if o.name.startswith("bow_string")]; assert len(string)
 #    between each guard and its limb (the scaled sword grip and guard were shorter than the space the design set them
 #    in) - and the spurs (the war axe's fang, cut in half) and the limbs' bases were open shells. The spurs and limbs
 #    are capped; the grip is stretched into its guards and each limb's base pulled down into its guard.
-# 2. THE ARROW REST: the upper guard is the sword's crossguard - its arms stood out 3.3 to each side of the bow, where the
-#    arrow lies beside the riser (vanilla's riser is no wider than 1.6 / 2.0 there). Its arms are drawn in to vanilla's
-#    width on the upper (+y, Bow_StringBone2) side: the arrow shelf. The lower guard keeps its arms.
+# 2. THE ARROW REST: the upper guard was the sword's crossguard, its arms out where the arrow lies. Both guards are now
+#    REPLACED (owner 2026-11-14 08:19 / 08:27, collar.py): one round braided collar at each end of the grip with the
+#    arrow's groove in its top edge, the limbs round at the root flattening out, the talons seated on the limbs.
 # 3. STRING NOCKS: the string met the bare metal at the tip. Each limb gets a nock 2.6 below its point - a round notch
 #    in both edges (the limb's width drawn in round the nock, its depth the groove's radius) - the string ends there on the belly, and a loop of the same wrapped cord (the war axe's grip)
 #    goes round the limb through both grooves. The limb tip now stands 2.6 past the string's end, as vanilla's does
@@ -587,43 +589,51 @@ BREP["welded_hard_edges_split"] = {o.name: harden(o) for o in bow if o.name.star
 grip_o = [o for o in bow if o.name == "bow_grip"][0]
 def side_objs(prefix, s): return [o for o in bow if o.name.startswith("%s%d_" % (prefix, s))]
 def ys(objs, s): return [s * v.co.y for o in objs for v in o.data.vertices]
+# ---- the collar, round limb roots and seated talons (owner 2026-11-14 08:19 / 08:27 - see collar.py). The two sword-
+# crossguard guards go; one round collar (collar.py) is set at each end of the grip, the lower the upper turned 180 deg.
+for o in side_objs("bow_guard", 1) + side_objs("bow_guard", -1):
+    bow.remove(o); bpy.data.objects.remove(o)
+GV = [v.co for v in grip_o.data.vertices]
+XC = round((min(p.x for p in GV) + max(p.x for p in GV)) / 2, 4)     # the riser's centre line (x), z = 0
+YJ = (collar.Y0 + collar.Y1) / 2                                      # grip end and limb base meet inside the collar
 for s in (1, -1):
-    gd_, lm_ = side_objs("bow_guard", s), side_objs("bow_limb", s)
-    g0, g1 = min(ys(gd_, s)), max(ys(gd_, s)); e = max(ys([grip_o], s)); lb = min(ys(lm_, s))
-    # the band is arched: its top edge is lowest at its middle (over the bow's back and belly). Grip end and limb base meet
-    # 0.25 below that, inside the band all round
-    gmid = max(s * v.co.y for o in gd_ for v in o.data.vertices if abs(v.co.z) < 0.6)
-    tl = gmid - 0.25; tg = tl; R_ = 2.0
+    lm_ = side_objs("bow_limb", s); e = max(ys([grip_o], s)); lb = min(ys(lm_, s)); R_ = 2.0
     for v in grip_o.data.vertices:
-        if s * v.co.y > 0: v.co.y = v.co.y * tg / e
+        if s * v.co.y > 0: v.co.y = v.co.y * YJ / e
     for o in lm_:
         for v in o.data.vertices:
             u = s * v.co.y
-            if u < lb + R_: v.co.y = s * (tl + (u - lb) * (lb + R_ - tl) / R_)
+            if u < lb + R_: v.co.y = s * (YJ + (u - lb) * (lb + R_ - YJ) / R_)
         o.data.update()
-    if s == 1:      # the upper limb's base, now down in the band where the arrow passes, no wider than the shelf (1.95)
-        zb = max(abs(v.co.z) for o in lm_ for v in o.data.vertices if v.co.y < g1)
-        for o in lm_:
-            for v in o.data.vertices:
-                k = min(1.0, max(0.0, (v.co.y - g1) / 0.8))
-                v.co.z *= (1.95 / zb) * (1 - k) + k if zb > 1.95 else 1.0
-            o.data.update()
-        BREP["upper_limb_base_half_width_was"] = round(zb, 3)
-        zg = max(abs(v.co.z) for v in grip_o.data.vertices if v.co.y > tg - 1.5)    # the grip's flared top, likewise
-        for v in grip_o.data.vertices:
-            k = min(1.0, max(0.0, (v.co.y - (tg - 2.0)) / 1.0))
-            if zg > 1.95: v.co.z *= 1 - k + k * 1.95 / zg
-        BREP["grip_top_half_width_was"] = round(zg, 3)
-    BREP["gaps_side_%+d" % s] = {"grip_end_was": round(e, 3), "band_top_at_middle": round(gmid, 3), "guard": [round(g0, 3), round(g1, 3)], "limb_base_was": round(lb, 3),
-                                 "grip_end_now": round(tg, 3), "limb_base_now": round(tl, 3)}
+    BREP["junction_side_%+d" % s] = {"grip_end_was": round(e, 3), "limb_base_was": round(lb, 3), "both_now": round(YJ, 3)}
+# inside the collar the grip's flared ends are drawn in (|z| <= 1.6, |x - XC| <= 0.9): clear of the arrow's groove
+for v in grip_o.data.vertices:
+    if abs(v.co.y) > collar.Y0 - 0.05:
+        v.co.z = max(-1.6, min(1.6, v.co.z)); v.co.x = XC + max(-0.9, min(0.9, v.co.x - XC))
 grip_o.data.update()
-# the arrow shelf: the upper guard's arms drawn in to vanilla's riser width (|z| <= 1.95)
-ZSHELF = 1.95
-ug = side_objs("bow_guard", 1); zmax = max(abs(v.co.z) for o in ug for v in o.data.vertices)
-for o in ug:
-    for v in o.data.vertices: v.co.z *= ZSHELF / zmax
-    o.data.update()
-BREP["arrow_shelf"] = {"upper_guard_half_width_was": round(zmax, 3), "now": ZSHELF}
+# the limbs: round at the root (R_ROOT, on the collar's axis), flattening to their own section over ROOT_LEN
+BREP["round_roots"] = {}
+for s in (1, -1):
+    lm_ = side_objs("bow_limb", s)
+    for o in lm_:
+        collar.ring_cuts(o, s, collar.Y1 - 0.4, collar.Y1 + collar.ROOT_LEN, 0.25)
+        r_ = collar.round_root(o, s, XC, collar.Y1)
+    BREP["round_roots"]["%+d" % s] = {"radius": collar.R_ROOT, "from": collar.Y1, "to": collar.Y1 + collar.ROOT_LEN,
+                                      "face_area_ratio_p5_p50_p95": [round(float(x), 3) for x in np.percentile(r_, [5, 50, 95])]}
+    BREP["welded_hard_edges_split_after_rounding_%+d" % s] = harden(lm_[0])
+# the collars
+cu = collar.build_collar("bow_collar1_band", XC, BAND_UV); cl = collar.build_collar("bow_collar-1_band", XC, BAND_UV)
+collar.turn_lower(cl, XC)
+for c_ in (cu, cl):
+    c_["item"] = "bow"; c_["tex"] = "sword1hebony"; BREP.setdefault("collar_hard_edges", {})[c_.name] = harden(c_); bow.append(c_)
+BREP["collar"] = {"axis_x": XC, "band_radius": collar.RC, "lip_radius": collar.RC + collar.LIP, "y": [round(collar.Y0, 3), collar.Y1],
+                  "band_height": collar.BAND_H, "lip_height": collar.LIP_H, "segments": collar.NSEG}
+# the talons, seated on the limbs' backs above the collars
+BREP["talons"] = {}
+for s in (1, -1):
+    sp = [o for o in bow if o.name == "bow_spur%d_fang" % s][0]
+    BREP["talons"]["%+d" % s] = collar.seat_talon(sp, s, side_objs("bow_limb", s), collar.Y1 - 0.12)
+    BREP["talons"]["%+d" % s]["holes_capped"] = cap_holes(sp); harden(sp)
 
 # string nocks
 st = string[0]; SV = [v.co for v in st.data.vertices]
@@ -720,6 +730,21 @@ for o in bow:
 REP["bow_fit"] = {"string_ends_before": [round(ymin, 2), round(ymax, 2)], "string_x_before": round(xs, 3),
                   "pivots": [[round(c, 2) for c in p1], [round(c, 2) for c in p2]], "length_scale": [round(kyn, 4), round(kyp, 4)],
                   "tip_shift_x": round(dx, 3)}
+# the arrow's groove in each collar's edge, carved now the bow stands in vanilla's frame: round the line an arrow takes
+# beside vanilla's riser at Bow_MidBone's height (as verify.py's arrow-rest check), radius RG_ARROW; the lower collar's at
+# the same place on the piece (its height through the lower half's own length scale)
+mid_ = heads["Bow_MidBone"]
+VZ = 0.0                                              # vanilla's riser half-width where its edges cross that height
+for e_ in vm.data.edges:
+    a_, b_ = (vm.matrix_world @ vm.data.vertices[i].co for i in e_.vertices)
+    if (a_.y - mid_.y) * (b_.y - mid_.y) <= 0 and a_.y != b_.y:
+        c_ = a_.lerp(b_, (mid_.y - a_.y) / (b_.y - a_.y))
+        if c_.x > -9: VZ = max(VZ, abs(c_.z))
+assert 1.5 < VZ < 2.5, VZ
+ZA, RG_ARROW = VZ + 0.3, 0.50
+BREP["arrow_groove"] = {"y": round(mid_.y, 3), "z": round(ZA, 3), "radius": RG_ARROW, "vanilla_riser_half_width": round(VZ, 3),
+                        "moved": {o.name: collar.carve_groove(o, XC, (mid_.y if o.name.startswith("bow_collar1") else -mid_.y * kyn / kyp), ZA, RG_ARROW)
+                                  for o in bow if o.name.startswith("bow_collar")}}
 
 def split_vanilla(keep_string):
     c = vm.copy(); c.data = vm.data.copy(); bpy.context.scene.collection.objects.link(c)
