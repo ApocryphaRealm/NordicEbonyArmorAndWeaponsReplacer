@@ -482,6 +482,10 @@ def dump_points(objs, name):
     np.save(os.path.join(OUTD, "points_%s.npy" % name), np.array([tuple(o.matrix_world @ v.co) for o in objs for v in o.data.vertices], np.float64))
 
 def export_single(o, path):
+    # a BSTriShape indexes its triangles with 16 bits: over 65535 the export wraps silently and the shape comes out with
+    # scrambled faces (bow r03 first build: 68344 triangles, read back as 65527 with 124 surfaces facing in)
+    o.data.calc_loop_triangles(); nt_ = len(o.data.loop_triangles)
+    assert nt_ <= 65535, ("over a BSTriShape's 65535 triangles", o.name, nt_)
     select_only(o)
     r = bpy.ops.export_scene.pynifly(filepath=path, target_game="SKYRIMSE", export_colors=False, blender_xf=False, intuit_defaults=False)
     print("EXPORT", path, r)
@@ -652,6 +656,25 @@ for c_ in (cu, cl):
     c_["item"] = "bow"; c_["tex"] = "sword1hebony"; BREP.setdefault("collar_hard_edges", {})[c_.name] = harden(c_); bow.append(c_)
 BREP["collar"] = {"axis_x": XC, "band_radius": collar.RC, "lip_radius": collar.RC + collar.LIP, "y": [round(collar.Y0, 3), collar.Y1],
                   "band_height": collar.BAND_H, "lip_height": collar.LIP_H, "segments": collar.NSEG}
+# r03: a round gold ring where the grip ends under each collar (collar.build_ring) in place of the sword grip's own end
+# flare, an oval 0.94 x 1.75 that read as a squashed ring. The grip's flare is drawn back to its plain section first.
+BREP["grip_end_rings"] = {}
+for s in (1, -1):
+    zlo = collar.Y0 - collar.RING_H - 0.1                   # the plain section: the highest full ring of the grip below
+    hs = {}
+    for v in grip_o.data.vertices:
+        if s * v.co.y <= zlo: hs.setdefault(round(s * v.co.y, 2), []).append(v.co)
+    pl = hs[max(h for h, cs in hs.items() if len(cs) >= 8)]
+    ax_, az_ = max(abs(c.x - XC) for c in pl), max(abs(c.z) for c in pl); drawn = 0
+    for v in grip_o.data.vertices:
+        if s * v.co.y > zlo:
+            k_ = math.hypot((v.co.x - XC) / ax_, v.co.z / az_)
+            if k_ > 1.0: v.co.x = XC + (v.co.x - XC) / k_; v.co.z /= k_; drawn += 1
+    r_, BREP["grip_end_rings"]["%+d" % s] = collar.build_ring("bow_ring%d" % s, XC, collar.Y0)
+    if s < 0: collar.turn_lower(r_, XC)
+    r_["item"] = "bow"; r_["tex"] = "sword1hebony"; BREP["grip_end_rings"]["%+d" % s]["hard_edges_split"] = harden(r_); bow.append(r_)
+    BREP["grip_end_rings"]["%+d" % s].update({"grip_section_half_x_z": [round(ax_, 3), round(az_, 3)], "grip_vertices_drawn_in": drawn})
+grip_o.data.update()
 # the talons: one solid claw per limb, rooted in the limb's back just above the collar (collar.build_talon, r02)
 BREP["talons"] = {}
 for s in (1, -1):

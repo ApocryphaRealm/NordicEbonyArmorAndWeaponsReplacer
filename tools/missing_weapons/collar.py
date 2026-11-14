@@ -50,6 +50,25 @@ XPAN = 4.85                         # the knot panel on the guard's face, x in [
 T_BAND = (0.17, 0.90)               # the band's black field + knot, as a share of the guard face's height
 GOLD_PATCH = ((0.4175, 0.476), (0.4204, 0.4497))   # (u, v) - plain gold, the guard's lower border (2048 px 855..975 x
                                                     # 1127..1187; >= 90% gold by colour)
+# r03 (Main Agent's r02 review: a line down the middle of each seam bar, and on the lips above and below it). Proof
+# renders with the base colour unplugged showed no line, so it was the texture, not the normals: r02 laid the bar
+# across the whole patch, whose left and right halves differ in tone, and each half turn of the lips' gold wrapped from
+# the patch's right end back to its left end right at the seam - and the patch's tone runs diagonally, so no pair of
+# its columns matches row for row (searched; mirroring the run instead flipped the normal map's sideways tilt and still
+# showed). The lips (and the new rings and talon fillets) now run ALONG the long gold bar beside the sword's grip panel
+# (GOLD_RUN: the same gold down its length; the run's two ends are the best-matched pair of rows, so the wrap at
+# each seam lands on matching texels), its bright 12 px
+# across their profile. Each seam bar takes 32 px of the patch's brightest even gold (871..903) by 24 rows of its smooth
+# middle (1160..1184) - wide enough that the atlas's 4 x 4 compression blocks read as grain, not as quarters (a first
+# try on an 8 px column showed four flat tiles)
+GOLD_RUN = ((0.6084, 0.6143), (1 - 130 / 2048, 1 - 222 / 2048))   # (u across a profile, v along the angle), a half turn
+                                                    # at a time: rows 130 and 222, the best-matched pair (colour and
+                                                    # normal) clear of the bar's flared ends
+BAR_UV = ((0.4253, 0.4409), (0.4219, 0.4336))       # (u across a seam bar, v up it)
+RING_H = 0.30                                       # r03: the round gold ring under each collar (where the grip ends)
+RING_R = 1.65                                       # its band radius; the lip profile's bead stands LIP proud of it
+TALON_FILLET = 0.45                                 # r03: the gold fillet's flare round the talon's root on the limb
+TALON_FILLET_RINGS = 8
 NSEG = 144                          # segments round the drum (2.5 degrees: the groove is carved into these)
 SEAM_BAR = 5.0                      # degrees each side of the two panel seams (the sides) given a gold bar (r02: the closures
                                     # met there as a visible break)
@@ -129,7 +148,10 @@ def build_collar(name, xc, band_uv):
                     else:
                         thp = (360.0 * i / NSEG + 90.0) % 360.0 - 180.0 * half + (0.0 if k in (0, 3) else 360.0 / NSEG)
                         cu_, cv_ = thp / 180.0, (-tt[k] - 3.0) / 11.0
-                    l[uvl].uv = (GOLD_PATCH[0][0] + cu_ * (GOLD_PATCH[0][1] - GOLD_PATCH[0][0]), GOLD_PATCH[1][0] + cv_ * (GOLD_PATCH[1][1] - GOLD_PATCH[1][0]))
+                    if mid_:
+                        l[uvl].uv = (GOLD_PATCH[0][0] + cu_ * (GOLD_PATCH[0][1] - GOLD_PATCH[0][0]), GOLD_PATCH[1][0] + cv_ * (GOLD_PATCH[1][1] - GOLD_PATCH[1][0]))
+                    else:
+                        l[uvl].uv = (GOLD_RUN[0][0] + cv_ * (GOLD_RUN[0][1] - GOLD_RUN[0][0]), GOLD_RUN[1][0] + cu_ * (GOLD_RUN[1][1] - GOLD_RUN[1][0]))
                 continue
             th0 = (360.0 * i / NSEG + 90.0) % 360.0 - 180.0 * half
             bar = th0 < SEAM_BAR - 1e-6 or th0 > 180.0 - SEAM_BAR - 1e-6
@@ -138,8 +160,8 @@ def build_collar(name, xc, band_uv):
                 tb = tt[k] if tt[k] >= 0 else (0.0 if q[k].co.y < (Y0 + Y1) / 2 else 1.0)
                 if bar:                       # a gold bar over the seam where the two knot panels meet (at the sides)
                     d_ = thp if thp < 90.0 else thp - 180.0
-                    l[uvl].uv = (GOLD_PATCH[0][0] + (d_ + SEAM_BAR) / (2 * SEAM_BAR) * (GOLD_PATCH[0][1] - GOLD_PATCH[0][0]),
-                                 GOLD_PATCH[1][0] + tb * (GOLD_PATCH[1][1] - GOLD_PATCH[1][0]))
+                    l[uvl].uv = (BAR_UV[0][0] + (d_ + SEAM_BAR) / (2 * SEAM_BAR) * (BAR_UV[0][1] - BAR_UV[0][0]),
+                                 BAR_UV[1][0] + tb * (BAR_UV[1][1] - BAR_UV[1][0]))
                     continue
                 xp = XPAN - 2 * XPAN * (thp - SEAM_BAR) / (180.0 - 2 * SEAM_BAR)
                 row = T_BAND[0] + (T_BAND[1] - T_BAND[0]) * tb
@@ -155,6 +177,47 @@ def turn_lower(o, xc):
     for v in o.data.vertices:
         v.co.x = 2 * xc - v.co.x; v.co.y = -v.co.y
     o.data.update()
+
+
+def build_ring(name, xc, y_top):
+    """r03: the gold ring where the grip ends under the upper collar - a closed round drum on the collar's axis, its side
+    the collar lip's own bead profile (scaled to RING_H high, standing LIP proud of RING_R), a disc at each end; the top
+    disc sits 0.05 inside the collar. r02 left the sword grip's own end flare there, an oval 0.94 x 1.75 that read as a
+    squashed ring. The gold goes on as the lips' does (GOLD_RUN along the angle, a half turn at a time; rows by profile).
+    The lower ring is this one turned with turn_lower. Kept light (72 sides, 10 rows): the bow's main shape is near the
+    65535 triangles a BSTriShape can index."""
+    import bpy
+    k = RING_H / LIP_H; yb = y_top - RING_H
+    lip = [(RING_R + 0.03, 0.0), (RING_R + 0.08, 0.02), (RING_R + LIP, 0.06), (RING_R + LIP, 0.14), (RING_R + 0.06, 0.18), (RING_R, LIP_H)]
+    disc = [0.0, 1.0, RING_R - 0.15]
+    prof = [(r, yb, j) for j, r in enumerate(disc)] + [(r, yb + k * h, len(disc) + j) for j, (r, h) in enumerate(lip)]
+    prof += [(RING_R - 0.15, y_top + 0.05, len(prof))] + [(0.0, y_top + 0.05, len(prof) + 1)]
+    nrow = len(prof) - 1; NS_ = NSEG // 2          # 5 degrees: the bow's shape holds at most 65535 triangles
+    me = bpy.data.meshes.new(name); bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap"); rings = []
+    for r, y, _ in prof:
+        if r == 0.0: rings.append([bm.verts.new((xc, y, 0.0))] * NS_); continue
+        rings.append([bm.verts.new((xc + r * math.cos(2 * math.pi * i / NS_), y, r * math.sin(2 * math.pi * i / NS_))) for i in range(NS_)])
+    for j in range(len(prof) - 1):
+        for i in range(NS_):
+            i1 = (i + 1) % NS_; q = [rings[j][i], rings[j][i1], rings[j + 1][i1], rings[j + 1][i]]
+            keep = [m for m in range(4) if q[m] not in q[:m]]
+            if len(keep) < 3: continue
+            f = bm.faces.new([q[m] for m in keep])
+            half = int(((360.0 * i / NS_ + 90.0) % 360.0) // 180.0)
+            mid_ = prof[j][0] <= 1.0 and prof[j + 1][0] <= 1.0
+            for m, l in zip(keep, f.loops):
+                if mid_:
+                    l[uvl].uv = (GOLD_PATCH[0][0] + (0.5 + 0.25 * (q[m].co.x - xc)) * (GOLD_PATCH[0][1] - GOLD_PATCH[0][0]),
+                                 GOLD_PATCH[1][0] + (0.5 + 0.25 * q[m].co.z) * (GOLD_PATCH[1][1] - GOLD_PATCH[1][0]))
+                    continue
+                thp = (360.0 * i / NS_ + 90.0) % 360.0 - 180.0 * half + (0.0 if m in (0, 3) else 360.0 / NS_)
+                row = (j if m in (0, 1) else j + 1) / nrow
+                l[uvl].uv = (GOLD_RUN[0][0] + row * (GOLD_RUN[0][1] - GOLD_RUN[0][0]), GOLD_RUN[1][0] + thp / 180.0 * (GOLD_RUN[1][1] - GOLD_RUN[1][0]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in bm.faces: f.smooth = True
+    bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
+    return o, {"y": [round(yb, 3), round(y_top, 3)], "band_radius": RING_R, "outer_radius": RING_R + LIP, "segments": NS_}
 
 
 def carve_groove(o, xc, ya, za, rg):
@@ -351,13 +414,22 @@ def loft_root(o, s, xc, y_top_collar):
 
 def build_talon(name, s, limbs, y_top_collar, nt=48):
     """one solid claw on the back (+x) of limb s (owner 2026-11-14 08:27, "lined up properly"; r02): a tapered,
-    slightly flattened round section swept along a cubic curve in the bow's plane (x, y) - its root seated INSIDE the
-    limb TALON_UR above the collar's top (clear of the lip), leaving the limb's back outward, turning to run along the
-    limb toward the tip, and closing to a sharp point. The section is an ellipse, TALON_A0 * (1 - q) ** 0.85 across in
-    the bow's plane and TALON_FLAT of that thick (z); both edges (the convex outer and the concave inner) take a gold
-    trim (the gold bar beside the Wolf sword's grip panel), the flanks the blade's plain damascus field. The lower
-    talon is the same piece mirrored through the grip (s = -1). One per limb, as the approved design had one fang each."""
+    slightly flattened round section swept along a cubic curve in the bow's plane (x, y) - its root TALON_UR above the
+    collar's top (clear of the lip), leaving the limb's back outward, turning to run along the limb toward the tip, and
+    closing to a sharp point. The section is an ellipse, TALON_A0 * (1 - q) ** 0.85 across in the bow's plane and
+    TALON_FLAT of that thick (z); both edges (the convex outer and the concave inner) take a gold trim (the gold bar
+    beside the Wolf sword's grip panel), the flanks the blade's plain damascus field. The lower talon is the same piece
+    mirrored through the grip (s = -1). One per limb, as the approved design had one fang each.
+    r03 (Main Agent's r02 review: an oval seat line where the claw entered the limb, the limb's braid cut by it): the
+    claw no longer pierces the limb. Its sweep starts at the first ring wholly outside the limb (by 0.1), and from there
+    a GOLD FILLET flares down onto the limb: every point of that ring runs along a Hermite curve that leaves it along the
+    claw's own direction and lands TALON_FILLET out, ON the limb's surface (nearest point, sunk 0.015), lying along it -
+    so the surface turns smoothly from claw into limb with no crease, and the braid ends cleanly under a gold mount
+    (chosen over routing the braid round the root: the root is about twice the braid's width, so a braid routed round
+    it would leave the limb's edges, and a gold edge is how the collar ends the braid too). Closed by a cap inside the
+    limb."""
     import bpy
+    from mathutils.bvhtree import BVHTree
     u_r = y_top_collar + TALON_UR
     bu, bx = ray_line(limbs, s, u_r - 1.0, u_r + 1.0, 20.0, zs=(0.0,), step=0.1)
     assert len(bu), ("no limb back found for the talon", s)
@@ -370,39 +442,85 @@ def build_talon(name, s, limbs, y_top_collar, nt=48):
     R = TALON_RIDGE
     th = np.r_[np.linspace(-R, R, 5)[:-1], np.linspace(R, 180 - R, 13)[:-1], np.linspace(180 - R, 180 + R, 5)[:-1], np.linspace(180 + R, 360 - R, 13)[:-1]]
     na = len(th); thr = np.radians(th)
-    me = bpy.data.meshes.new(name); bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap")
-    rings = []
+    # the ring points (as vectors), each ring's centre and the sweep's direction there
+    pos, ctr, dirs = [], [], []
     for i, t in enumerate(ts[:-1]):
         p = bez(t); d = dbez(t); d = d / np.linalg.norm(d); nrm = np.array([d[1], -d[0]])        # toward the convex side
         q = i / nt; a = TALON_A0 * (1 - q) ** 0.85; b = TALON_FLAT * a
-        rings.append([bm.verts.new((p[0] + a * math.cos(x) * nrm[0], s * (p[1] + a * math.cos(x) * nrm[1]), b * math.sin(x))) for x in thr])
+        pos.append([Vector((p[0] + a * math.cos(x) * nrm[0], s * (p[1] + a * math.cos(x) * nrm[1]), b * math.sin(x))) for x in thr])
+        ctr.append(Vector((p[0], s * p[1], 0.0))); dirs.append(Vector((d[0], s * d[1], 0.0)))
+    dg = bpy.context.evaluated_depsgraph_get(); trees = [BVHTree.FromObject(o, dg) for o in limbs]
+    LV = [v.co.copy() for o in limbs for v in o.data.vertices]
+    def axis_at(y):                                               # the limb section's centre at height y
+        sl = [c for c in LV if abs(c.y - y) < 0.15]
+        return Vector(((min(c.x for c in sl) + max(c.x for c in sl)) / 2, y, (min(c.z for c in sl) + max(c.z for c in sl)) / 2))
+    def nearest(pt):
+        best = None
+        for tr in trees:
+            h = tr.find_nearest(pt)
+            if h[0] is not None and (best is None or h[3] < best[3]): best = h
+        loc, n = best[0], best[1].normalized(); c = axis_at(loc.y)
+        if n.dot(loc - c) < 0: n = -n                              # outward, whichever way the face winds
+        return loc, n
+    def outside(pt):
+        loc, n = nearest(pt); return (pt - loc).dot(n)
+    e = next(i for i in range(len(pos)) if min(outside(pt) for pt in pos[i]) > 0.10)
+    # the fillet: ring e's points flared out onto the limb (F), Hermite F -> E, leaving the limb along its surface and
+    # arriving along the claw
+    F, FN = [], []
+    for j in range(na):
+        E = pos[e][j]; rad = (E - ctr[e]); rad = rad - rad.dot(dirs[e]) * dirs[e]; rad.normalize()
+        loc, n = nearest(E + TALON_FILLET * rad - 0.35 * dirs[e])
+        F.append(loc - 0.015 * n); FN.append(n)
+    fil = []
+    for k in range(TALON_FILLET_RINGS):
+        t = k / TALON_FILLET_RINGS; h00 = 2 * t ** 3 - 3 * t * t + 1; h10 = t ** 3 - 2 * t * t + t; h01 = -2 * t ** 3 + 3 * t * t; h11 = t ** 3 - t * t
+        ring = []
+        for j in range(na):
+            E = pos[e][j]; Fj = F[j]; n = FN[j]; g = E - Fj; kk = g.length * 1.4
+            t0 = g - g.dot(n) * n; t0 = t0.normalized() * kk; t1 = dirs[e] * kk
+            ring.append(Fj * h00 + t0 * h10 + E * h01 + t1 * h11)
+        fil.append(ring)
+    me = bpy.data.meshes.new(name); bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap")
+    allpos = fil + pos[e:]; rings = [[bm.verts.new(p) for p in ring] for ring in allpos]
+    nf = len(fil)
     pe = bez(1.0); tip = bm.verts.new((pe[0], s * pe[1], 0.0))
-    p0 = bez(0.0); root = bm.verts.new((p0[0], s * p0[1], 0.0))
+    inner = sum(F, Vector()) / na - 0.4 * (sum(FN, Vector()) / na).normalized(); root = bm.verts.new(inner)
     def uv(q, x, edge):               # q along the talon (0 root .. 1 point), x the angle in degrees (-R .. 360 - R)
         if edge:                                                                # an edge: gold, across the bar
             c = (x + R) / (2 * R) if x <= R + 1e-6 else (x - 180 + R) / (2 * R)
             return (UV_GOLD[0][0] + c * (UV_GOLD[0][1] - UV_GOLD[0][0]), UV_GOLD[1][0] + q * (UV_GOLD[1][1] - UV_GOLD[1][0]))
         c = (x - R) / (180 - 2 * R) if x < 180 else (x - 180 - R) / (180 - 2 * R)   # a flank: the plain field
         return (UV_BODY[0][0] + q * (UV_BODY[0][1] - UV_BODY[0][0]), UV_BODY[1][0] + c * (UV_BODY[1][1] - UV_BODY[1][0]))
+    def fuv(k, x, back):              # the fillet: gold, along the angle on GOLD_RUN a half turn at a time, across by its ring
+        c = (x + R - (180.0 if back else 0.0)) / 180.0
+        return (GOLD_RUN[0][0] + k / nf * (GOLD_RUN[0][1] - GOLD_RUN[0][0]), GOLD_RUN[1][0] + c * (GOLD_RUN[1][1] - GOLD_RUN[1][0]))
     for i in range(len(rings)):
-        q0 = i / nt; q1 = (i + 1) / nt
         for j in range(na):
             j1 = (j + 1) % na; x0 = th[j]; x1 = th[j1] if j1 else 360.0 + th[0]
             if i < len(rings) - 1:
-                vs, qs, xs = [rings[i][j], rings[i][j1], rings[i + 1][j1], rings[i + 1][j]], [q0, q0, q1, q1], [x0, x1, x1, x0]
+                vs, xs = [rings[i][j], rings[i][j1], rings[i + 1][j1], rings[i + 1][j]], [x0, x1, x1, x0]
             else:
-                vs, qs, xs = [rings[i][j], rings[i][j1], tip], [q0, q0, 1.0], [x0, x1, (x0 + x1) / 2]
+                vs, xs = [rings[i][j], rings[i][j1], tip], [x0, x1, (x0 + x1) / 2]
             f = bm.faces.new(vs)
+            if i < nf:
+                back = (x0 + x1) / 2 + R > 180.0
+                for l, kq, x in zip(f.loops, [i, i, i + 1, i + 1], xs): l[uvl].uv = fuv(kq, x, back)
+                continue
+            ti = e + i - nf; q0 = ti / nt; q1 = (ti + 1) / nt
+            qs = [q0, q0, q1, q1] if len(vs) == 4 else [q0, q0, 1.0]
             xm = (x0 + x1) / 2; edge = xm < R or 180 - R < xm < 180 + R                # the face's own region
             for l, q, x in zip(f.loops, qs, xs): l[uvl].uv = uv(q, x, edge)
-    for j in range(na):                                           # the root disc, buried in the limb
+    for j in range(na):                                           # the cap, inside the limb
         f = bm.faces.new([root, rings[0][(j + 1) % na], rings[0][j]])
         for l in f.loops: l[uvl].uv = (UV_BODY[0][0] + 0.004 * (s * l.vert.co.y - u_r), UV_BODY[1][0] + 0.01 + 0.004 * l.vert.co.z)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     for f in bm.faces: f.smooth = True
     bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
-    return o, {"root_centre_u": round(u_r, 3), "root_spans_u": [round(u_r - TALON_A0, 3), round(u_r + TALON_A0, 3)],
+    fy = [s * p.y for p in F]
+    return o, {"root_centre_u": round(u_r, 3), "fillet_from_ring": e, "fillet_flare": TALON_FILLET, "fillet_rings": nf,
+               "fillet_on_limb_u": [round(min(fy), 3), round(max(fy), 3)], "fillet_on_limb_z": [round(min(p.z for p in F), 3), round(max(p.z for p in F), 3)],
                "collar_top": round(y_top_collar, 3), "limb_back_x_at_root": round(bx0, 3),
                "point_x_u": [round(float(pe[0]), 3), round(float(pe[1]), 3)], "length": round(float(L[-1]), 3),
                "root_half_width": TALON_A0, "thickness_share": TALON_FLAT, "rings": nt, "sides": na}
