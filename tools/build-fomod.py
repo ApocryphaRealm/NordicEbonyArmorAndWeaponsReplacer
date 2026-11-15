@@ -262,6 +262,14 @@ def main(out_root=None, test=False):
 
     n_core = place(MAP_ARMOR, core) + place(MAP_WEAPONS, core)
 
+    # the shield to the Truly Nordic Carved "Shield - Clean" face size (the owner, 2026-11-15) - scaled about its grip
+    # in place, before build-missing-weapons.py verifies the weapons folder; see missing_weapons/shield_size.py
+    sys.path.insert(0, os.path.join(HERE, "missing_weapons"))
+    import shield_size
+    sh = shield_size.resize(os.path.join(core, "meshes", "weapons", "ebony", "ebonyshield.nif"))
+    print("  shield ................ rim %.2f -> %.2f (x%.4f about %s)" % (
+        sh["rim_diameter_before"], sh["rim_diameter_after"], sh["scale"], sh["pivot"]))
+
     # the mace, warhammer, bow, arrow / quiver / arrow in flight, and first-person copies of the Wolf
     # weapons - built from the Wolf weapons' own pieces (build-missing-weapons.py)
     import importlib.util
