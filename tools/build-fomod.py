@@ -256,9 +256,7 @@ def main(version_root=None, test=False, flat_only=False, rebuild_3d=False):
         return version_root
     import package3d
     out3d = package3d.make("ebony", flat, os.path.join(version_root, FULL3D), rebuild_3d=rebuild_3d)
-    # the installer's title says which download it is
-    set_module_name(flat, MOD_NAME + " - Flat textures")
-    set_module_name(out3d, MOD_NAME)
+    # both packages carry the repo's installer byte for byte (gate repo-fomod-installer-ships); its title is the mod's name
     return version_root
 
 
