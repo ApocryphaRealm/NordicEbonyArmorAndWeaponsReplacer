@@ -4,12 +4,12 @@
   * a skinned shape whose shader lacks SLSF1 Skinned (0x2), or a rigid one that has it (Truly Nordic bow, 2026-11-11);
   * one of OUR shapes pointing at a texture outside textures\\nordwar\\companions\\ (the Wolf atlases);
   * one of OUR shapes with more than 1% of its surface on faces with no UV area, or a tangent / bitangent that is
-    not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer 1.1.0); a
+    not a unit vector - lost UVs draw one texel with no tangent frame, black and flat in game (warhammer, 2026-11-14); a
     skinned shape (the bow) is read from its NiSkinPartition's vertex buffer (bow r02, 2026-11-14 - it was not read);
   * one of OUR shapes with a face whose three vertex normals all lean > 40 deg off it - a hard edge smoothed over
-    because PyNifly writes one normal per vertex (the warhammer's teeth drew as a flat disc, 1.1.0);
+    because PyNifly writes one normal per vertex (the warhammer's teeth drew as a flat disc, 2026-11-14);
   * light through the mesh (see_through): rays at OUR shapes that meet a back face first and no front face after - the
-    game culls back faces, so the light behind shows through (bow handle and arrow, 1.1.0 2026-11-14); gated on the bow
+    game culls back faces, so the light behind shows through (bow handle and arrow, 2026-11-14); gated on the bow
     and arrow files, the mace and warhammer reported;
   * the bow (bow_checks): gaps in the riser, the riser wider than vanilla's where the arrow rests, a string end with no
     nock (limb tip past it, a notch, the cord round the limb);
@@ -43,7 +43,7 @@ def texpaths(n, sh):
 
 def surface_frame(n, b):
     """a rigid shape's UV and tangent-frame health: the share (by 3D area) of faces with NO UV area - a piece whose UVs
-    were lost samples one texel and has no tangent frame, black and flat in game (warhammer extension 1.1.0, 2026-11-14) -
+    were lost samples one texel and has no tangent frame, black and flat in game (warhammer extension, 2026-11-14) -
     and the vertices whose tangent or bitangent is not a unit vector. A skinned shape keeps its vertices in its
     NiSkinPartition (SSE: one global buffer, the same 28 bytes first, then 12 of skinning) - read from there."""
     o = n.av_end(b, 0, [], []); blk = n.blocks[b]; q = o + 28
@@ -74,7 +74,7 @@ def surface_frame(n, b):
     bad_t = int(((np.abs(np.linalg.norm(T, axis=1) - 1) > 0.1) | (np.abs(np.linalg.norm(Bt, axis=1) - 1) > 0.1)).sum())
     # smoothed-over hard edges: a face whose three vertex normals ALL lean more than 40 degrees off the face itself - the
     # vertices are shared with faces at a sharp angle, so the game lights it with an averaged normal (the warhammer's
-    # pyramid teeth drew as a flat disc, 1.1.0 2026-11-14; every Legacy of Ysgramor piece measures 0)
+    # pyramid teeth drew as a flat disc, 2026-11-14; every Legacy of Ysgramor piece measures 0)
     g = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); g = g / np.maximum(np.linalg.norm(g, axis=1), 1e-12)[:, None]
     Nn = Nb[:, :3] / np.maximum(np.linalg.norm(Nb[:, :3], axis=1), 1e-9)[:, None]
     smoothed = (np.einsum("fkj,fj->fk", Nn[F], g).max(1) < math.cos(math.radians(40))) & (a3 > 1e-6)
@@ -103,7 +103,7 @@ def lit_shapes(n):
     return out
 
 def see_through(n, ours, rays=1500, seed=11, chunk=48):
-    """LIGHT THROUGH THE MESH (bow grip and arrow, 1.1.0 2026-11-14): rays from every side at points on OUR shapes, cast
+    """LIGHT THROUGH THE MESH (bow grip and arrow, 2026-11-14): rays from every side at points on OUR shapes, cast
     against every solid shape; a ray whose first surface is a BACK face looks through a
     hole the game does not draw - it culls back faces - and when no FRONT face stops it further on, the light behind comes
     straight through. Returns the share of such rays among those whose first surface is one of ours. Vanilla's ebony bow measures 0.001, its arrow 0.000."""

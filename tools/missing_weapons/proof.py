@@ -32,7 +32,7 @@ def material(dds):
     else:
         b.inputs["Base Color"].default_value = (1, 0, 1, 1)            # a missing texture shows magenta
     pn = p[:-4] + "_n.dds"            # the game's tangent-space normal map, as the game shader uses it: Blender derives the
-    if os.path.isfile(pn):            # tangents from the UVs, so a piece whose UVs were lost renders flat here too (warhammer 1.1.0)
+    if os.path.isfile(pn):            # tangents from the UVs, so a piece whose UVs were lost renders flat here too (warhammer, 2026-11-14)
         tn = nt.nodes.new("ShaderNodeTexImage"); tn.image = bpy.data.images.load(pn, check_existing=True); tn.image.colorspace_settings.name = "Non-Color"
         nm = nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(tn.outputs["Color"], nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     b.inputs["Metallic"].default_value = 0.6; b.inputs["Roughness"].default_value = 0.4

@@ -1,0 +1,15 @@
+{
+ "ebony": [
+  ["ebonysword", ["sword1hebony"]], ["ebonygreatsword", ["sword2hebony"]], ["ebonydagger", ["daggerebony"]],
+  ["ebonywaraxe", ["axe1hebony"]], ["ebonybattleaxe", ["axe2hebony"]], ["ebonymace", ["axe1hebony"]], ["ebonywarhammer", ["axe2hebony"]],
+  ["1stpersonebonysword", ["sword1hebony"]], ["1stpersonebonygreatsword", ["sword2hebony"]], ["1stpersonebonydagger", ["daggerebony"]],
+  ["1stpersonebonywaraxe", ["axe1hebony"]], ["1stpersonebonybattleaxe", ["axe2hebony"]], ["1stpersonebonymace", ["axe1hebony"]],
+  ["1stpersonebonywarhammer", ["axe2hebony"]]
+ ],
+ "skyforged": [
+  ["Sword", ["sword1h"]], ["Greatsword", ["sword2h"]], ["Dagger", ["dagger"]], ["Axe", ["axe1h"]], ["BattleAxe", ["axe2h"]],
+  ["Mace", ["axe1h"]], ["Warhammer", ["axe2h"]],
+  ["1stPersonSword", ["sword1h"]], ["1stPersonGreatsword", ["sword2h"]], ["1stPersonDagger", ["dagger"]], ["1stPersonAxe", ["axe1h"]],
+  ["1stPersonBattleAxe", ["axe2h"]], ["1stPersonMace", ["axe1h"]], ["1stPersonWarhammer", ["axe2h"]]
+ ]
+}

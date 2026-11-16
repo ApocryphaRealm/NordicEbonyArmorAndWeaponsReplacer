@@ -1,9 +1,9 @@
 # Whose work this is
 
 **The art is NordwarUA's.** This mod takes his Wolf ebony armour and weapons from Legacy of Ysgramor and puts them
-where the game looks for its ebony gear. Since 1.1.0 it also carries **new meshes derived from that art** - the ebony
+where the game looks for its ebony gear. It also carries **new meshes derived from that art** - the ebony
 mace, warhammer, bow, arrows and quiver, which Legacy of Ysgramor does not have, assembled from pieces cut out of his
-own Wolf ebony weapons, each piece keeping his UVs - and first-person copies of his Wolf weapons. Since 1.1.0 the
+own Wolf ebony weapons, each piece keeping his UVs - and first-person copies of his Wolf weapons. The
 textures are **his own textures recoloured all-black and made into TruePBR materials** by our build scripts. All of it
 is modification and asset use of Legacy of Ysgramor under its permissions (below): with credit to NordwarUA as the
 original creator, on Nexus only, never sold.
@@ -32,6 +32,14 @@ derives the material list from the meshes it is shipping (never from a hand-writ
 `tools/build-missing-weapons.py` builds the derived weapons on the game's own vanilla ebony meshes, read from the
 player's `Skyrim - Meshes0/1.bsa` - so no Bethesda mesh is in the repository either.
 
+## The full-3D main file (1.0.0)
+
+The 3D download is the flat package with geometry added by our own tools (`tools/full3d/`): the modelled mail rings,
+and the raised rivets, studs, buckles, straps and lamellar scales, placed where NordwarUA's own textures and shine masks
+show them, on his meshes and UVs. The added shapes are textured from his maps (recoloured as above), so this is the same
+modification and asset use of Legacy of Ysgramor, under the same permissions and credit. Its CBBE 3BA and HIMBO fits are
+the fits described below, with the added shapes conformed the same way.
+
 ## The CBBE 3BA BodySlide files - Legacy of Ysgramor - 3BA Bodyslide
 
 [Nexus 111209](https://www.nexusmods.com/skyrimspecialedition/mods/111209), **Legacy of Ysgramor - 3BA Bodyslide** by
@@ -46,7 +54,7 @@ The installer's Body step offers, beside the vanilla bodies (the default), CBBE 
 
 [Nexus 110002](https://www.nexusmods.com/skyrimspecialedition/mods/110002), **Legacy of Ysgramor - HIMBO Conversion**
 by **Trexasle**, asks for his permission before its assets are used, so it is not packaged here (it was an option
-before 1.1.0 was posted). The mod page points HIMBO players at his page.
+before the first public release). The mod page points HIMBO players at his page.
 
 ## What IS ours
 
@@ -60,8 +68,8 @@ GPL-3.0-or-later, Copyright (C) 2026 ApocryphaRealm.
 ## The four weapons Legacy of Ysgramor does not have
 
 NordwarUA's wolf ebony line has a sword, greatsword, war axe, battleaxe, dagger and shield. Vanilla ebony also has a
-**mace, a warhammer, a bow and arrows** (with the quiver). Up to 1.0.0 they kept the game's look, and an optional
-plugin took them out of the levelled lists. Since 1.1.0 they are built from the Wolf weapons' own pieces (see above),
+**mace, a warhammer, a bow and arrows** (with the quiver). In the early development builds they kept the game's look, and an optional
+plugin took them out of the levelled lists. Now they are built from the Wolf weapons' own pieces (see above),
 so the set is complete and that plugin is retired.
 
 ## What is deliberately NOT replaced
@@ -87,8 +95,8 @@ permission" is not shipped until a written permission is recorded here.
 | Legacy of Ysgramor - My patches and fixes (Ebony Black, Wolf Black, Full Collar Black) | 111121 | Xtudo | Permissions read 2026-11-15: modification and asset use need his permission; no donation points on mods using his assets | **No** - not read by the build, not shipped (up to the unposted 1.1.0 builds of 2026-11-15 his black diffuses were used; replaced by our own recolour of NordwarUA's originals) |
 
 The NordwarUA box in full, read 2026-11-12 (the owner: this mod "has permission for use since this is the mod its
-from" - the same permission applies to both of our mods built from that source, Nordic Ebony Armor and Weapons
-Replacer and Nordic Skyforged Armor and Weapons):
+from" - the same permission applies to both of our mods built from that source, Truly Nordic Ebony Armor and Weapons
+and Truly Nordic Skyforged Armor and Weapons):
 
 - Other user's assets: all the assets belong to the author or are free-to-use modder's resources.
 - **Modification permission: allowed** - "You are allowed to modify my files and release bug fixes or improve on the

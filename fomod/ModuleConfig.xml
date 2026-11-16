@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
-	<moduleName>Nordic Ebony Armor and Weapons Replacer</moduleName>
+	<moduleName>Truly Nordic Ebony Armor and Weapons</moduleName>
 	<moduleImage path="fomod\images\header.png" showImage="true" showFade="true" height="-1" />
 
 	<!-- Meshes and the TruePBR textures (the light plugin is the "Plugin" step's ESP option) (our black recolour of NordwarUA's own maps, 2K): the same whatever you pick below.
@@ -59,6 +59,7 @@
 					<plugins order="Explicit">
 						<plugin name="Vanilla female body">
 							<description>The set as NordwarUA fitted it, for the vanilla female body.</description>
+							<image path="fomod\images\vanilla_f.png" />
 							<files />
 							<conditionFlags><flag name="female">vanilla</flag></conditionFlags>
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
@@ -76,12 +77,14 @@
 					<plugins order="Explicit">
 						<plugin name="Vanilla male body">
 							<description>The set as NordwarUA fitted it, for the vanilla male body.</description>
+							<image path="fomod\images\vanilla_m.png" />
 							<files />
 							<conditionFlags><flag name="male">vanilla</flag></conditionFlags>
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
 						</plugin>
 						<plugin name="HIMBO">
 							<description>The male set fitted to HIMBO by us (HIMBO's own Vanilla-to-HIMBO conversion, then every HIMBO slider conformed onto the armour): meshes prebuilt with the "HIMBO Default" preset, RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - HIMBO", also listed under HIMBO) to build it to your own preset.</description>
+							<image path="fomod\images\himbo.png" />
 							<files />
 							<conditionFlags><flag name="male">himbo</flag></conditionFlags>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>

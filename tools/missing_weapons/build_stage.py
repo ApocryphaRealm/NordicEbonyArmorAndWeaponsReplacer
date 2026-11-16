@@ -68,7 +68,7 @@ REP["arrow_shaft"] = {"length": round(hi.y - lo.y, 3), "radius": round(rad, 4), 
 def harden(o, deg=35.0):
     """Hard edges the game can see: PyNifly exports ONE normal per vertex, averaged over every face sharing it, so a flat-
     shaded face in Blender still draws smooth in game unless its vertices are its own. Split every edge sharper than deg
-    (the warhammer's pyramid teeth drew as a flat disc, 1.1.0 2026-11-14 - all their normals averaged to the face normal)."""
+    (the warhammer's pyramid teeth drew as a flat disc, 2026-11-14 - all their normals averaged to the face normal)."""
     bm = bmesh.new(); bm.from_mesh(o.data)
     sharp = [e for e in bm.edges if len(e.link_faces) == 2 and e.calc_face_angle(0.0) > math.radians(deg)]
     bmesh.ops.split_edges(bm, edges=sharp)
@@ -147,7 +147,7 @@ def join(objs, name):
         # ONE UV layer under ONE name on every piece before the join: Blender's join matches UV layers BY NAME, so a piece
         # whose layer has another name (build_v1face.py's new face and extension call theirs "UV", PyNifly's imports
         # "UVMap") lands in a second layer, and the exported first layer holds (0, 0) for all its corners - the warhammer's
-        # extension and face drew the atlas's corner texel with no tangent frame: black and flat in game (1.1.0, 2026-11-14)
+        # extension and face drew the atlas's corner texel with no tangent frame: black and flat in game (2026-11-14)
         uvs = o.data.uv_layers; assert len(uvs) >= 1, (name, o.name, "a piece without UVs")
         keep_uv = uvs.active.name
         for nm in [l.name for l in uvs if l.name != keep_uv]: uvs.remove(uvs[nm])
@@ -167,7 +167,7 @@ def join(objs, name):
 def weld_join(objs, name, **props):
     """pieces that meet along their rims (a fang cut into five parts, an arrowhead in four) joined and welded into ONE
     piece before cap_holes: capped apart, their caps met back to back inside and the welded edges they share had three or
-    more faces - the surface could not be told inside from outside (the arrowhead came out inside-out, 1.1.0 2026-11-14)"""
+    more faces - the surface could not be told inside from outside (the arrowhead came out inside-out, 2026-11-14)"""
     tex = {o["tex"] for o in objs}; assert len(tex) == 1, (name, tex)
     j = join(list(objs), name)
     bm = bmesh.new(); bm.from_mesh(j.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
@@ -571,7 +571,7 @@ def outside_points(arrows, body):
         out[o.name] = n
     return out
 REP["quiver_arrows_outside_body"] = outside_points(list(qarrows.values()), list(quiver.values()))
-print("QUIVER ARROWS OUTSIDE", REP["quiver_arrows_outside_body"])   # measured, reported; not yet a gate (see the 1.1.0 changelog)
+print("QUIVER ARROWS OUTSIDE", REP["quiver_arrows_outside_body"])   # measured, reported; not yet a gate (see the 1.0.0 changelog)
 REP["orient"].update(orient_outward([arrow["axe1hebony"]]))
 REP["orient"].update(orient_outward(list(quiver.values()) + list(qarrows.values())))
 REP["arrow_cap_twins"] = {o.name: double_caps(o) for o in [arrow["axe1hebony"]] + list(qarrows.values())}

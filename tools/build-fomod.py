@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-r"""Assemble the FOMOD installer for Nordic Ebony Armor and Weapons Replacer.
+r"""Assemble the FOMOD installers for Truly Nordic Ebony Armor and Weapons (named Nordic Ebony Armor and Weapons Replacer
+until 2026-11-16).
+
+TWO PACKAGES SINCE 1.0.0 (the owner, 2026-11-16: the 3D build is the MAIN file, the flat build the OPTIONAL file)
+    <version folder>\Flat\   the texture-only set described below - built here from the Nexus downloads;
+    <version folder>\3D\     the same package with the full-3D build laid over it (every mail ring, rivet, stud, buckle,
+                             strap and lamellar scale modelled; 3D CBBE 3BA / HIMBO fits) - tools/package3d.py, which
+                             refuses a 3D build made from other meshes than the flat package ships (--rebuild-3d
+                             rebuilds it with tools/full3d/).
+    Each is its own FOMOD with the same choices. 11. Nexus distro\<mod>\nexus-files.json names them for the upload.
 
 WHAT THIS PACKAGES
     NordwarUA's wolf EBONY armour and weapons from Legacy of Ysgramor (Nexus 109963), moved onto
     the vanilla ebony mesh paths so they replace the game's ebony gear, in an all-black look of our
     own: NordwarUA's ORIGINAL diffuses recoloured by tools/recolour_black.py (the owner, 2026-11-15
     21:54 - Xtudo's black colourway needs his permission, so none of his files is read or shipped),
-    and since 1.1.0 as Community Shaders TRUEPBR materials (the owner 21:55; tools/truepbr.py):
+    and as Community Shaders TRUEPBR materials (the owner 21:55; tools/truepbr.py):
     albedo + his normal + RMAOS under textures\pbr\NordicEbony\.
 
     The armour's worn models go through the light plugin's four ADDON overrides (build-arma-esl.py);
@@ -14,7 +23,7 @@ WHAT THIS PACKAGES
     no Wolf version of - mace, warhammer, bow, arrow (with the quiver) - are BUILT from the Wolf
     weapons' own pieces by build-missing-weapons.py, which this script runs; first-person copies of
     the Wolf weapons come from it too. (The optional "hide unmatched weapons" plugin, which took those
-    four out of the levelled lists and recipes, was retired in 1.1.0 before it was ever posted - build-hide-esp.py and
+    four out of the levelled lists and recipes, was retired before the first public release - build-hide-esp.py and
     verify-hide-esp.py stay in git history.)
 
     TEXTURES AT 2K ONLY (the owner, 2026-11-14): NordwarUA ships one resolution (2K, some 1K), made
@@ -43,7 +52,7 @@ WHAT IT REFUSES TO DO
     * ship if any folder ModuleConfig.xml installs from came out missing or empty;
     * ship if an installer image the XML points at is absent.
 
-Usage:  python tools/build-fomod.py [output folder]
+Usage:  python tools/build-fomod.py [version folder] [--test] [--flat-only] [--rebuild-3d]
 """
 import os
 import re
@@ -147,7 +156,7 @@ MAP_WEAPONS = {
 VANILLA_TEXTURES = ("textures\\blood\\", "textures\\cubemaps\\eyecubemap.dds")
 
 TEXPAT = re.compile(rb"[Tt]extures.{1,180}?\.dds")
-IMAGES = ("header.png", "fur.png", "nofur.png", "cbbe3ba.png")   # tools/installer-images.py
+IMAGES = ("header.png", "fur.png", "nofur.png", "vanilla_f.png", "vanilla_m.png", "cbbe3ba.png", "himbo.png")   # tools/installer-images.py
 
 
 def fail(msg):
@@ -228,19 +237,47 @@ def expand(mapping):
     return out
 
 
-def main(out_root=None, test=False):
+MOD_NAME = "Truly Nordic Ebony Armor and Weapons"
+PLUGIN = MOD_NAME + ".esp"
+FLAT, FULL3D = "Flat", "3D"        # the two packages' folders (zips: "<mod> <ver> - Flat.zip" / "- 3D.zip")
+
+
+def main(version_root=None, test=False, flat_only=False, rebuild_3d=False):
+    """Both packages under <version_root>: Flat\\ built from the downloads, then 3D\\ from it (tools/package3d.py)."""
+    ver = version()
+    if version_root is None:
+        version_root = os.path.normpath(os.path.join(
+            REPO, "..", "..", "7. current test builds", "Skyrim - " + MOD_NAME, "%s %s" % (MOD_NAME, ver)))
+    if os.path.isdir(version_root):
+        supersede(version_root)
+    flat = build_flat(os.path.join(version_root, FLAT), test)
+    if flat_only:
+        print("  --flat-only: no 3D package built. Not shippable as a release.")
+        return version_root
+    import package3d
+    out3d = package3d.make("ebony", flat, os.path.join(version_root, FULL3D), rebuild_3d=rebuild_3d)
+    # the installer's title says which download it is
+    set_module_name(flat, MOD_NAME + " - Flat textures")
+    set_module_name(out3d, MOD_NAME)
+    return version_root
+
+
+def set_module_name(pkg, name):
+    p = os.path.join(pkg, "fomod", "ModuleConfig.xml")
+    t = open(p, encoding="utf-8").read()
+    t2 = re.sub(r"<moduleName>[^<]*</moduleName>", "<moduleName>%s</moduleName>" % name, t, count=1)
+    if t2 == t and ("<moduleName>%s</moduleName>" % name) not in t:
+        fail("no <moduleName> in %s" % p)
+    open(p, "w", encoding="utf-8", newline="").write(t2)
+
+
+def build_flat(out_root, test=False):
     """test=True is for a build meant only for the owner's own MO2, before the pictures exist.
 
     It skips the installer-image check and nothing else. A package built this way is NOT
     shippable - the installer would show empty panes - and the script says so loudly.
     """
     ver = version()
-    if out_root is None:
-        out_root = os.path.normpath(os.path.join(
-            REPO, "..", "..", "7. current test builds",
-            "Nordic Ebony Armor and Weapons Replacer %s" % ver))
-    if os.path.isdir(out_root):
-        supersede(out_root)
     work = os.path.join(out_root, "_work")
 
     base = extract(A_BASE, os.path.join(work, "base"))
@@ -318,7 +355,7 @@ def main(out_root=None, test=False):
     if not os.path.isfile(os.path.join(nofur, "NordicEbony", "m", "cuirass_1.nif")):
         fail("the collarless option has no worn cuirass under meshes\\NordicEbony - the option would change nothing worn")
 
-    main_esl = os.path.join(REPO, "plugin", "Nordic Ebony Armor and Weapons Replacer.esp")
+    main_esl = os.path.join(REPO, "plugin", PLUGIN)
     if not os.path.isfile(main_esl):
         fail("the light plugin is missing - run tools/build-arma-esl.py first, or the worn armour "
              "would keep pointing at vanilla's own meshes")
@@ -447,9 +484,11 @@ def main(out_root=None, test=False):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--test"]
+    flags = {"--test", "--flat-only", "--rebuild-3d"}
+    args = [a for a in sys.argv[1:] if a not in flags]
     is_test = "--test" in sys.argv[1:]
-    out = main(args[0] if args else None, test=is_test)
+    out = main(args[0] if args else None, test=is_test, flat_only="--flat-only" in sys.argv[1:],
+               rebuild_3d="--rebuild-3d" in sys.argv[1:])
     if is_test:
         print()
         print("  *** --test: built WITHOUT the installer images. Not shippable. ***")

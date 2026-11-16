@@ -4,7 +4,7 @@ installs a model shows that model). Each picture is a render of exactly the mesh
 package's own TruePBR textures (tools/render_lib.py: game-like lighting, the gradient world standing in for Community
 Shaders' cube-map reflections); the header lines up the whole set.
 
-Usage:  python tools/installer-images.py "<package folder>"      -> fomod/images/*.png in the repository
+Usage:  python tools/installer-images.py "<package folder>"   (the FLAT package: <version folder>\Flat)      -> fomod/images/*.png in the repository
 Needs Blender with PyNifly (BLENDER, or on PATH, or under Program Files) and Pillow.
 """
 import os, sys, shutil
@@ -18,8 +18,13 @@ PREFIXES = ("textures\\pbr\\nordicebony\\",)
 SHOTS = {
     "fur": (["00 Core/meshes/armor/ebony/m/cuirass_1.nif"], 20),
     "nofur": (["10 Cuirass - No fur collar/meshes/armor/ebony/m/cuirass_1.nif"], 20),
-    # the 3BA ShapeData NIFs do not open in PyNifly; the female set (the same outfit, before BodySlide) stands in
-    "cbbe3ba": (["00 Core/meshes/NordicEbony/f/%s_1.nif" % p for p in ("cuirass", "boots", "gauntlets")], 20),
+    # every body option shows the set on that body (2026-11-16: every body option a picture): the vanilla sets from the
+    # core, CBBE 3BA and HIMBO from the meshes BodySlide prebuilt for those options (the 3BA ShapeData NIFs do not open
+    # in PyNifly; the prebuilt game meshes do)
+    "vanilla_f": (["00 Core/meshes/NordicEbony/f/%s_1.nif" % p for p in ("cuirass", "boots", "gauntlets")], 20),
+    "vanilla_m": (["00 Core/meshes/NordicEbony/m/%s_1.nif" % p for p in ("cuirass", "boots", "gauntlets")], 20),
+    "cbbe3ba": (["32 CBBE 3BA meshes/meshes/NordicEbony/f/%s_1.nif" % p for p in ("cuirass", "boots", "gauntlets")], 20),
+    "himbo": (["36 HIMBO meshes/meshes/NordicEbony/m/%s_1.nif" % p for p in ("cuirass", "boots", "gauntlets")], 20),
     "w_mace": (["00 Core/meshes/weapons/ebony/ebonymace.nif"], 0), "w_warhammer": (["00 Core/meshes/weapons/ebony/ebonywarhammer.nif"], 0),
     "w_bow": (["00 Core/meshes/weapons/ebony/ebonybowskinned.nif"], 0), "w_quiver": (["00 Core/meshes/weapons/ebony/ebonyarrow.nif"], 0),
     "w_sword": (["00 Core/meshes/weapons/ebony/ebonysword.nif"], 0), "w_greatsword": (["00 Core/meshes/weapons/ebony/ebonygreatsword.nif"], 0),
@@ -28,14 +33,17 @@ SHOTS = {
 }
 
 
-def main(pkg):
+def main(pkg, tex_pkg=None):
     from PIL import Image, ImageDraw
-    work = os.path.join(pkg, "_images_work")
+    import tempfile
+    work = tempfile.mkdtemp(prefix="installer-images-")     # never inside the package (2026-11-16)
     shots = {k: ([os.path.join(pkg, p) for p in ps], yaw) for k, (ps, yaw) in SHOTS.items()}
-    render_lib.render(shots, [os.path.join(pkg, "00 Core")], work, PREFIXES)
+    # textures: the package's own core, or (second argument) another built package's core with the same textures
+    tex = [os.path.join(tex_pkg or pkg, "00 Core")]
+    render_lib.render(shots, tex, work, PREFIXES)
     os.makedirs(IMG, exist_ok=True)
     bg = (38, 39, 42)
-    for name in ("fur", "nofur", "cbbe3ba"):
+    for name in ("fur", "nofur", "vanilla_f", "vanilla_m", "cbbe3ba", "himbo"):
         render_lib.card(os.path.join(work, name + ".png"), (800, 1000)).save(os.path.join(IMG, name + ".png"))
     # header: the armour and the twelve pieces in a row
     order = ["fur", "w_sword", "w_greatsword", "w_waraxe", "w_battleaxe", "w_dagger", "w_shield", "w_mace", "w_warhammer", "w_bow", "w_quiver"]
@@ -45,11 +53,11 @@ def main(pkg):
     for k in order:
         w = int(widths[k] * scale); head.paste(render_lib.card(os.path.join(work, k + ".png"), (w, H)), (x, 10)); x += w + 10
     d = ImageDraw.Draw(head)
-    d.text((14, H + 22), "Nordic Ebony Armor and Weapons Replacer - NordwarUA's Wolf ebony set, all black, in TruePBR - the full set", fill=(225, 205, 150))
+    d.text((14, H + 22), "Truly Nordic Ebony Armor and Weapons - NordwarUA's Wolf ebony set, all black, in TruePBR - the full set", fill=(225, 205, 150))
     head.save(os.path.join(IMG, "header.png"))
     shutil.rmtree(work, ignore_errors=True)
     print("installer images written to", IMG)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)

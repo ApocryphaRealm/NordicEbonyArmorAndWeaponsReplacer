@@ -1,4 +1,4 @@
-# The shield's size (the owner, 2026-11-15, looking at the 1.1.0 set in game): "make the shield the same size as the
+# The shield's size (the owner, 2026-11-15, looking at the set in game): "make the shield the same size as the
 # nordic carved clean shield" - the Truly Nordic Carved Weapons Replacer's "Shield - Clean" option (1.4.0,
 # meshes\dlc02\armor\nordicshield\nordicshield.nif).
 #

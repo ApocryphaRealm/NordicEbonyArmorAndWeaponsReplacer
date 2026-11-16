@@ -1,11 +1,34 @@
-# Changelog - Nordic Ebony Armor and Weapons Replacer
+# Changelog - Truly Nordic Ebony Armor and Weapons
 
-## 1.1.0 - 2026-11-14 - working
+## 1.0.0 - 2026-11-16 - untested
+
+First public release, under the new name Truly Nordic Ebony Armor and Weapons (it was Nordic Ebony Armor and Weapons
+Replacer while in development; the plugin is renamed to match: `Truly Nordic Ebony Armor and Weapons.esp`, still a
+light plugin).
 
 ### Added
+- Two downloads. The MAIN file is the full-3D set: the chain mail is modelled ring by ring (each ring linked four-in-one
+  to its neighbours, about 3,200 rings on the helmet and 7,500 on the cuirass), and the rivets, studs, buckles, straps
+  and lamellar scales are raised geometry on the helmet, cuirass, gauntlets, boots, shield and weapons. The OPTIONAL
+  file is the flat set - the same armour with the mail as a chain-link TruePBR material instead of modelled rings - for
+  big battles or older PCs. Measured in one launch: ten NPCs in the 3D set against the same ten in the flat set cost
+  about 0.8-1.1 ms of GPU time, hidden in a CPU-bound scene (the frame time stayed within noise); first-person mail has
+  no measurable cost. Both are FOMOD installers with the same choices (tools/build-fomod.py builds both;
+  tools/package3d.py lays the 3D build from tools/full3d/ over the flat package).
+- Our own body fits, made by running BodySlide ourselves: CBBE 3BA for the female set (meshes prebuilt at 3BA's zeroed
+  sliders, plus the BodySlide project to build your own preset, slider data in our own files) and HIMBO for the male
+  set (HIMBO's own Vanilla-to-HIMBO conversion with every HIMBO slider conformed onto the armour, meshes prebuilt with
+  "HIMBO Default", plus the project). Both cover the collarless cuirass too, and the 3D download ships them fitted to
+  the 3D set. Vanilla bodies stay the default. Trexasle's HIMBO conversion is not used.
+- Installer choice of ESP version (recommended) or No ESP - SkyPatcher. The no-ESP option ships no plugin: the worn
+  meshes sit on vanilla's own ebony paths and a SkyPatcher INI gives the helmet the open-helm body slots, so the head is
+  not hidden (needs SkyPatcher, Nexus 106659). With it, another mod replacing the vanilla ebony armour meshes wins or
+  loses by mod order, the helmet no longer takes the Head slot, and the CBBE 3BA / HIMBO fits do not apply (they sit in
+  the ESP version's mesh folder).
+- A picture on every body option in the installer (vanilla female, CBBE 3BA, vanilla male, HIMBO).
 - Optional installer page 'Compatibility patches (requires SkyPatcher)', with either plugin choice: 'Ryn's Snazzy Last Vigil - Ebony Warrior set' puts the Ebony Warrior's own armour from Ryn's Snazzy Last Vigil (boots, cuirass, gauntlets, helmet, shield) in this look - Ryn's names, stats and enchantments stay, his scimitar stays his, and his craftable Vitreous Ebony set is left alone; it is ticked for you when Ryn's plugin is installed and SkyPatcher reads it only when that plugin is active. 'Ebony Mail in this look' (off by default) gives the Ebony Mail the ebony cuirass's look; its name, stats and enchantment stay vanilla. Both need SkyPatcher (Nexus 106659). The no-ESP option no longer carries these swaps itself, and no longer touches the Vitreous Ebony set.
 - Installer pictures for every option that installs a model, and a header showing the whole set (tools/installer-images.py renders them from the built package).
-- First-person models for the Wolf sword, greatsword, war axe, battleaxe and dagger. The vanilla first-person records point at 1stpersonebony*.nif, which 1.0.0 did not ship, so in first person those five showed the vanilla ebony art. The new mace and warhammer ship first-person files too; the bow's first-person record uses the same file as third person.
+- First-person models for the Wolf sword, greatsword, war axe, battleaxe and dagger. The vanilla first-person records point at 1stpersonebony*.nif, which the development builds did not ship, so in first person those five showed the vanilla ebony art. The new mace and warhammer ship first-person files too; the bow's first-person record uses the same file as third person.
 - The four ebony weapons Legacy of Ysgramor has no Wolf version of - the mace, the warhammer, the bow and the arrows, with the quiver and its six quiver arrows and the arrow in flight - now replace the vanilla ebony ones, so the whole ebony set matches. Every piece is cut from NordwarUA's own Wolf ebony weapons and keeps its own UVs on the set's own atlases; there is no new texture. The mace is the war axe's haft and grip with six knotwork flanges and a spiked crown; the warhammer is the battle axe with a round paw-cap hammer, a gold lip and a gnarled striking face; the bow is the sword's blades bent into recurved limbs with fang spurs; the arrows carry the war axe's spike, fangs as vanes and a paw nock; the quiver is the dagger's scabbard with a gold collar and fang plate. Built by tools/build-missing-weapons.py from the Legacy of Ysgramor download and the game's own meshes at build time - the repository carries no art.
 
 ### Changed
@@ -21,7 +44,7 @@
 - The arrows' shaft uses the war axe's wrapped grip (the same leather wrap as the approved design's battle-axe haft): the game hides the quiver arrows one by one by shape name, so each quiver arrow has to be one shape on one atlas.
 
 ### Removed
-- The HIMBO options (prebuilt meshes, the collarless HIMBO cuirass, the HIMBO BodySlide files): Legacy of Ysgramor - HIMBO Conversion asks for its author's permission before its assets are used. The mod page points HIMBO players at it. The CBBE 3BA BodySlide files stay (its page gives Legacy of Ysgramor's own terms).
+- Trexasle's HIMBO conversion (Legacy of Ysgramor - HIMBO Conversion asks for its author's permission before its assets are used) and Xonek-only BodySlide slider data: the HIMBO and CBBE 3BA options are our own fits now (see Added).
 - The optional Hide Unmatched Weapons plugin and its installer page: the mace, warhammer, bow and arrows now match, so its 113 levelled-list and 7 recipe overrides are gone and those lists and recipes are vanilla again. It was never posted.
 - The vanilla ebony mace's belt hook (Scb) is not carried over - no Wolf piece forms a hook; the mace hangs at the hip like the war axe.
 
@@ -41,9 +64,15 @@
 - Warhammer: the toothed striking face drew in game as a flat tan disc with a diagonal smear. Its texture window held a ridge in the normal map, and the teeth shared vertices so their lighting averaged flat. The face now uses flat-normal blade steel and every tooth facet has its own vertices. A build check now fails any shape with a hard edge smoothed over.
 - The warhammer's round extension, gold lip and toothed striking face drew black and flat in game: their UVs were lost when the head's pieces were joined into one shape (the new pieces' UV layer had another name), so they sampled one corner texel with no tangent frame. Every piece now carries one UV layer under one name before the join, and the build fails if a shape has faces with no UV area or a broken tangent frame.
 
-## 1.0.0
+## Before the first public release
 
-First release.
+1.0.0 is the first public version (the owner, 2026-11-16: the pages are made again from scratch "set to 1.0 as its
+first upload to Nexus"). The builds below were development builds that were never public - one was uploaded under
+another number to a page that was never published. They used Xtudo's black colourway and Trexasle's HIMBO conversion,
+neither of which is in 1.0.0. Kept as history.
+
+### First development build (numbered 1.0.0 at the time, 2026-09-17)
+
 
 * NordwarUA's wolf ebony armour and weapons from Legacy of Ysgramor, replacing the game's ebony gear.
 * A light plugin - a `.esp` with the light flag, an ESPFE - overriding the four vanilla ebony armour
