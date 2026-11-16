@@ -20,9 +20,11 @@ WHAT THIS PACKAGES
     TEXTURES AT 2K ONLY (the owner, 2026-11-14): NordwarUA ships one resolution (2K, some 1K), made
     into PBR maps at that size and installed with the core; the build refuses any DDS larger than 2048.
 
-    BODY OPTIONS: only the CBBE 3BA BodySlide files (Xonek, 111209 - "the same as in original mod",
-    the owner 21:54: permission granted). The HIMBO conversion (Trexasle, 110002) is not shipped;
-    the page points at it.
+    BODY OPTIONS (since 2026-11-16, tools/loy-refits.py + tools/body_fits.py): CBBE 3BA from Xonek's
+    sets (111209 - "the same as in original mod", the owner 21:54: permission granted) on our own slider
+    data, and our OWN HIMBO fit (HIMBO's conversion and reference sets, conformed by us); both with
+    meshes prebuilt by BodySlide (3BA zeroed, HIMBO Default) plus the projects. Vanilla is the default.
+    Trexasle's HIMBO conversion (110002) is neither read nor shipped.
 
 WHY IT READS ARCHIVES INSTEAD OF SHIPPING FILES
     None of the art is ours. The repository carries none of it: this script opens the Nexus

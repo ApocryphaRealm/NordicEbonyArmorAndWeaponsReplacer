@@ -208,6 +208,28 @@ def build_bodyslide(prof, src_root, out, kind):
     return kept
 
 
+# Our own HIMBO fit (body_fits.py), per profile: (piece, our male weight-0 mesh under 00 Core, output path, output file)
+HIMBO_PIECES = {
+    "skyforged": [(p, "meshes\\NordicSkyforge\\armor\\%sM_0.nif" % b, "meshes\\NordicSkyforge\\armor", b + "M")
+                  for p, b in (("Armor", "Armor"), ("Boots", "Boots"), ("Gauntlets", "Gauntlets"), ("1stpersonArmor", "1stpersonArmor"))],
+    "ebony": [(p, "meshes\\NordicEbony\\m\\%s_0.nif" % p, "meshes\\NordicEbony\\m", p)
+              for p in ("cuirass", "boots", "gauntlets", "1stpersoncuirass")],
+}
+NOFUR_SRC = "10 Cuirass - No fur collar"   # the Ebony collarless cuirass option (its male mesh is the HIMBO source)
+
+# Option folders, numbered from --first (30). The "no fur collar" ones (Ebony) only change the group file / the cuirass.
+OPT = {"3ba_bs": 0, "3ba_bs_nofur": 1, "3ba_mesh": 2, "3ba_mesh_nofur": 3,
+       "himbo_bs": 4, "himbo_bs_nofur": 5, "himbo_mesh": 6, "himbo_mesh_nofur": 7}
+OPT_NAMES = {"3ba_bs": "BodySlide - CBBE 3BA", "3ba_bs_nofur": "BodySlide - CBBE 3BA - no fur collar",
+             "3ba_mesh": "CBBE 3BA meshes", "3ba_mesh_nofur": "CBBE 3BA meshes - no fur collar",
+             "himbo_bs": "BodySlide - HIMBO", "himbo_bs_nofur": "BodySlide - HIMBO - no fur collar",
+             "himbo_mesh": "HIMBO meshes", "himbo_mesh_nofur": "HIMBO meshes - no fur collar"}
+
+
+def opt_dir(out, first, key):
+    return os.path.join(out, "%02d %s" % (first + OPT[key], OPT_NAMES[key]))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", required=True, choices=sorted(PROFILES))
@@ -216,22 +238,77 @@ def main():
     ap.add_argument("--first", type=int, default=30, help="number of the first option folder")
     a = ap.parse_args()
     prof = PROFILES[a.profile]
-    # SINCE 2026-11-15 (the owner, 21:42/21:54): only the CBBE 3BA files ship. Trexasle's HIMBO Conversion asks for his
-    # permission for asset use, so it is not packaged - the mod page points at it instead. Xonek's 3BA page says its
-    # permissions are "the same as in original mod" (NordwarUA's: asset use and modification with credit), which the
-    # owner took as permission granted. The HIMBO functions above stay for the record; main() no longer calls them.
+    import body_fits as bf
+    # SINCE 2026-11-15 (the owner, 21:42/21:54): Trexasle's HIMBO Conversion asks for his permission for asset use, so
+    # nothing of it is packaged or read. Xonek's 3BA page says its permissions are "the same as in original mod"
+    # (NordwarUA's: asset use and modification with credit), which the owner took as permission granted.
+    # SINCE 2026-11-16 (the owner, 02:38): we ship our OWN HIMBO fit and prebuilt meshes for both bodies, built by
+    # running BodySlide ourselves (body_fits.py). The HIMBO functions above (Trexasle's files) stay unused.
     v = ARCHIVES["3ba"]
     if not os.path.isfile(os.path.join(a.refits, v)):
         fail("missing %s in %s" % (v, a.refits))
+    for k in OPT:
+        if os.path.isdir(opt_dir(a.out, a.first, k)):
+            shutil.rmtree(opt_dir(a.out, a.first, k))
+    nofur = "nofur" in prof
     tmp = tempfile.mkdtemp(prefix="loy-refits-")
     try:
+        # ---- CBBE 3BA: Xonek's sets, renamed, pointed at our own shape-data folders and .osd files
         tba = os.path.join(tmp, "3ba")
         extract(os.path.join(a.refits, ARCHIVES["3ba"]), tba)
-        d3 = os.path.join(a.out, "%02d BodySlide - CBBE 3BA" % a.first)
-        if os.path.isdir(d3):
-            shutil.rmtree(d3)
+        d3 = opt_dir(a.out, a.first, "3ba_bs")
         n3 = build_bodyslide(prof, tba, d3, "3ba")
-        print("  BodySlide CBBE 3BA .... %d slider sets -> %s" % (n3, os.path.basename(d3)))
+        bs3 = os.path.join(d3, "CalienteTools", "BodySlide")
+        n_sets, n_data = bf.fix_3ba(bs3)
+        label3 = "%s - CBBE 3BA" % prof["title"]
+        main3 = ["%s - %s" % (label3, o) for o in prof["tba_sets"].values() if " (" not in o]
+        # one cuirass per group: the collarless set writes the same file, and BodySlide stops to ask which to build
+        bf.write_groups(bs3, label3, main3, ["CBBE", "3BA"])
+        print("  BodySlide CBBE 3BA .... %d slider sets, %d slider entries on our own .osd -> %s" % (n3, n_data, os.path.basename(d3)))
+        if nofur:
+            alt = [m if not m.endswith(" - cuirass") else m + " (no fur collar)" for m in main3]
+            bf.write_groups(os.path.join(opt_dir(a.out, a.first, "3ba_bs_nofur"), "CalienteTools", "BodySlide"), label3, alt, ["CBBE", "3BA"])
+
+        # ---- HIMBO: our own conversion and conform (body_fits.himbo_project)
+        core = os.path.join(a.out, "00 Core")
+        labelh = "%s - HIMBO" % prof["title"]
+        pieces = [(p, os.path.join(core, src), op, of) for p, src, op, of in HIMBO_PIECES[a.profile]]
+        if nofur:
+            pieces.append(("cuirass (no fur collar)", os.path.join(a.out, NOFUR_SRC, "meshes", "NordicEbony", "m", "cuirass_0.nif"),
+                           "meshes\\NordicEbony\\m", "cuirass"))
+        for p in pieces:
+            if not os.path.isfile(p[1]):
+                fail("HIMBO source mesh missing: %s" % p[1])
+        dh = opt_dir(a.out, a.first, "himbo_bs")
+        bsh = os.path.join(dh, "CalienteTools", "BodySlide")
+        names, rep = bf.himbo_project(labelh, pieces, bsh, os.path.join(tmp, "himbo"))
+        mainh = [n for n in names if " (" not in n.split(" - ")[-1]]
+        bf.write_groups(bsh, labelh, mainh, ["HIMBO"])
+        print("  BodySlide HIMBO ....... %d slider sets (our conversion; vertices pushed out for clearance: %s) -> %s"
+              % (len(names), ", ".join("%s %d" % r for r in rep), os.path.basename(dh)))
+        if nofur:
+            alt = [m if not m.endswith(" - cuirass") else m + " (no fur collar)" for m in mainh]
+            bf.write_groups(os.path.join(opt_dir(a.out, a.first, "himbo_bs_nofur"), "CalienteTools", "BodySlide"), labelh, alt, ["HIMBO"])
+
+        # ---- prebuilt meshes, BodySlide run from a staging copy (no MO2)
+        bs = bf.staging(os.path.join(tmp, "stage"))
+        bf.add_project(bs, bs3); bf.add_project(bs, bsh)
+        jobs = [("3ba_mesh", label3, bf.PRESET_3BA), ("himbo_mesh", labelh, bf.PRESET_HIMBO)]
+        for key, group, preset in jobs:
+            built = bf.run_bodyslide(bs, group, preset, opt_dir(a.out, a.first, key))
+            print("  %-22s %d files (BodySlide, preset '%s') -> %s" % (OPT_NAMES[key], len(built), preset, os.path.basename(opt_dir(a.out, a.first, key))))
+        if nofur:
+            for key, bskey, group, preset in (("3ba_mesh_nofur", "3ba_bs_nofur", label3, bf.PRESET_3BA),
+                                              ("himbo_mesh_nofur", "himbo_bs_nofur", labelh, bf.PRESET_HIMBO)):
+                bf.add_project(bs, os.path.join(opt_dir(a.out, a.first, bskey), "CalienteTools", "BodySlide"))
+                tgt = opt_dir(a.out, a.first, key)
+                bf.run_bodyslide(bs, group, preset, tgt)
+                # keep only the cuirass: the rest is the same as the main option's
+                for dp, _, fs in os.walk(tgt):
+                    for f in fs:
+                        if not f.lower().startswith("cuirass"):
+                            os.remove(os.path.join(dp, f))
+                print("  %-22s cuirass only -> %s" % (OPT_NAMES[key], os.path.basename(tgt)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return 0

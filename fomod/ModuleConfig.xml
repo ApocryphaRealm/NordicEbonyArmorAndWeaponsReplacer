@@ -38,12 +38,14 @@
 							<description>The cuirass as NordwarUA built it, with the fur mantle across the shoulders - in black, recoloured from his own fur.</description>
 							<image path="fomod\images\fur.png" />
 							<files />
+							<conditionFlags><flag name="nofur">Off</flag></conditionFlags>
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
 						</plugin>
 						<plugin name="Without the fur collar">
 							<description>NordwarUA's collarless version of the same cuirass. Nothing else changes.</description>
 							<image path="fomod\images\nofur.png" />
 							<files><folder source="10 Cuirass - No fur collar" destination="" priority="2" /></files>
+							<conditionFlags><flag name="nofur">On</flag></conditionFlags>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
 					</plugins>
@@ -53,12 +55,35 @@
 
 		<installStep name="Body">
 			<optionalFileGroups order="Explicit">
-				<group name="Body support" type="SelectAny">
+				<group name="Female body" type="SelectExactlyOne">
 					<plugins order="Explicit">
-						<plugin name="CBBE 3BA - BodySlide files">
-							<description>Slider sets and shape data to build the female set to your CBBE 3BA preset in BodySlide (no physics), from Xonek's Legacy of Ysgramor - 3BA Bodyslide (permissions as Legacy of Ysgramor's), under the group "Nordic Ebony - CBBE 3BA". Nothing is prebuilt: build them once in BodySlide.</description>
+						<plugin name="Vanilla female body">
+							<description>The set as NordwarUA fitted it, for the vanilla female body.</description>
+							<files />
+							<conditionFlags><flag name="female">vanilla</flag></conditionFlags>
+							<typeDescriptor><type name="Recommended" /></typeDescriptor>
+						</plugin>
+						<plugin name="CBBE 3BA">
+							<description>The female set fitted to CBBE 3BA: meshes prebuilt at 3BA's zeroed sliders (the shape 3BA ships), RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - CBBE 3BA", also listed under CBBE and 3BA) to build it to your own preset. No physics. Fit from Xonek's Legacy of Ysgramor - 3BA Bodyslide, with its slider data shipped in our own files.</description>
 							<image path="fomod\images\cbbe3ba.png" />
-							<files><folder source="30 BodySlide - CBBE 3BA" destination="" priority="4" /></files>
+							<files />
+							<conditionFlags><flag name="female">3ba</flag></conditionFlags>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+				<group name="Male body" type="SelectExactlyOne">
+					<plugins order="Explicit">
+						<plugin name="Vanilla male body">
+							<description>The set as NordwarUA fitted it, for the vanilla male body.</description>
+							<files />
+							<conditionFlags><flag name="male">vanilla</flag></conditionFlags>
+							<typeDescriptor><type name="Recommended" /></typeDescriptor>
+						</plugin>
+						<plugin name="HIMBO">
+							<description>The male set fitted to HIMBO by us (HIMBO's own Vanilla-to-HIMBO conversion, then every HIMBO slider conformed onto the armour): meshes prebuilt with the "HIMBO Default" preset, RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - HIMBO", also listed under HIMBO) to build it to your own preset.</description>
+							<files />
+							<conditionFlags><flag name="male">himbo</flag></conditionFlags>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
 					</plugins>
@@ -66,4 +91,37 @@
 			</optionalFileGroups>
 		</installStep>
 	</installSteps>
+
+	<conditionalFileInstalls>
+		<patterns>
+			<pattern>
+				<dependencies operator="And"><flagDependency flag="female" value="3ba" /></dependencies>
+				<files>
+					<folder source="30 BodySlide - CBBE 3BA" destination="" priority="4" />
+					<folder source="32 CBBE 3BA meshes" destination="" priority="4" />
+				</files>
+			</pattern>
+			<pattern>
+				<dependencies operator="And"><flagDependency flag="female" value="3ba" /><flagDependency flag="nofur" value="On" /></dependencies>
+				<files>
+					<folder source="31 BodySlide - CBBE 3BA - no fur collar" destination="" priority="5" />
+					<folder source="33 CBBE 3BA meshes - no fur collar" destination="" priority="5" />
+				</files>
+			</pattern>
+			<pattern>
+				<dependencies operator="And"><flagDependency flag="male" value="himbo" /></dependencies>
+				<files>
+					<folder source="34 BodySlide - HIMBO" destination="" priority="4" />
+					<folder source="36 HIMBO meshes" destination="" priority="4" />
+				</files>
+			</pattern>
+			<pattern>
+				<dependencies operator="And"><flagDependency flag="male" value="himbo" /><flagDependency flag="nofur" value="On" /></dependencies>
+				<files>
+					<folder source="35 BodySlide - HIMBO - no fur collar" destination="" priority="5" />
+					<folder source="37 HIMBO meshes - no fur collar" destination="" priority="5" />
+				</files>
+			</pattern>
+		</patterns>
+	</conditionalFileInstalls>
 </config>
