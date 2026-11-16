@@ -27,6 +27,7 @@
 - The Truly Nordic Carved Weapons Replacer's "Ebony Replacer" option replaces the same vanilla ebony weapon files: use one or the other for the vanilla ebony weapons. Its Standalone and Additional Weapons options sit beside this mod.
 
 ### Fixed
+- The "Cuirass - No fur collar" installer option now changes the cuirass you wear. It shipped its collarless meshes only on the vanilla paths (meshes\armor\ebony\), while the plugin points the worn cuirass at meshes\NordicEbony\, so it changed only the ground model. The option now also ships them under meshes\NordicEbony\, overriding the core's fur-collared ones (tools/build-fomod.py), and the build stops if they are missing. Found 2026-11-15 before posting.
 - Build (tools/missing_weapons/build_stage.py): a shape over the 65535 triangles a game mesh can index now stops the build; before, the export wrapped silently and scrambled the shape's faces.
 - Build check (tools/missing_weapons/verify.py): the UV and tangent-frame check now reads the skinned bow's vertices from its skin partition; before, it skipped the bow without saying so.
 - Build check (tools/missing_weapons/verify.py): the bow and arrow now fail the build if light can pass through them, if the riser has a gap, if the riser is wider than vanilla's where the arrow rests, or if a string end has no nock.

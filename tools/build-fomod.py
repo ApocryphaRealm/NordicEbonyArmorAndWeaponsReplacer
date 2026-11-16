@@ -300,6 +300,22 @@ def main(out_root=None, test=False):
                 shutil.copy2(os.path.join(src, fn), os.path.join(dest, fn))
                 n_ours += 1
 
+    # The collarless option must ALSO ship its worn cuirass under our folder: the plugin points the worn cuirass at
+    # NordicEbony\<sex>\Cuirass_*.nif, so a copy on the vanilla path alone changed only the ground model (found
+    # 2026-11-15 before posting). The option's files overwrite the core's (FOMOD install order).
+    nofur = os.path.join(out_root, "10 Cuirass - No fur collar", "meshes")
+    for sex in ("m", "f"):
+        src = os.path.join(nofur, "armor", "ebony", sex)
+        if not os.path.isdir(src):
+            continue
+        dest = os.path.join(nofur, "NordicEbony", sex)
+        os.makedirs(dest, exist_ok=True)
+        for fn in os.listdir(src):
+            if fn.lower().endswith(".nif") and "gnd" not in fn.lower():
+                shutil.copy2(os.path.join(src, fn), os.path.join(dest, fn))
+    if not os.path.isfile(os.path.join(nofur, "NordicEbony", "m", "cuirass_1.nif")):
+        fail("the collarless option has no worn cuirass under meshes\\NordicEbony - the option would change nothing worn")
+
     main_esl = os.path.join(REPO, "plugin", "Nordic Ebony Armor and Weapons Replacer.esp")
     if not os.path.isfile(main_esl):
         fail("the light plugin is missing - run tools/build-arma-esl.py first, or the worn armour "
