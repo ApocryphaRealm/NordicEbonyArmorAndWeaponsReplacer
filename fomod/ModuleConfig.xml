@@ -4,13 +4,32 @@
 	<moduleName>Nordic Ebony Armor and Weapons Replacer</moduleName>
 	<moduleImage path="fomod\images\header.png" showImage="true" showFade="true" height="-1" />
 
-	<!-- Meshes, the light plugin and the TruePBR textures (our black recolour of NordwarUA's own maps, 2K): the same whatever you pick below.
+	<!-- Meshes and the TruePBR textures (the light plugin is the "Plugin" step's ESP option) (our black recolour of NordwarUA's own maps, 2K): the same whatever you pick below.
 	     The ebony mace, warhammer, bow, arrows and quiver are built from the Wolf weapons' own pieces. -->
 	<requiredInstallFiles>
 		<folder source="00 Core" destination="" priority="0" />
 	</requiredInstallFiles>
 
 	<installSteps order="Explicit">
+		<installStep name="Plugin">
+			<optionalFileGroups order="Explicit">
+				<group name="Plugin or SkyPatcher" type="SelectExactlyOne">
+					<plugins order="Explicit">
+						<plugin name="ESP version (recommended)">
+							<description>A light plugin (ESL-flagged, it takes no load-order slot) that points vanilla's four ebony armour addon records at this mod's own mesh folder and gives the helmet the open-helm body slots. Nothing else is needed. Ryn's Snazzy Last Vigil's Ebony Warrior set and the Ebony Mail keep their own look with this option.</description>
+							<files><folder source="01 Plugin - ESP" destination="" priority="1" /></files>
+							<typeDescriptor><type name="Recommended" /></typeDescriptor>
+						</plugin>
+						<plugin name="No ESP - SkyPatcher">
+							<description>No plugin at all. REQUIRES SkyPatcher (https://www.nexusmods.com/skyrimspecialedition/mods/106659), which edits records at game start from text files. The armour and weapons show the same look and keep their stats: the worn meshes sit on vanilla's own ebony paths, and SkyPatcher gives the helmet the open-helm body slots so the head is not hidden. With this option SkyPatcher also gives the Ebony Mail and, if Ryn's Snazzy Last Vigil is installed, the Ebony Warrior's and the Vitreous Ebony set this look (Ryn's scimitar stays his). What changes against the ESP version: any other mod that replaces the vanilla ebony armour meshes wins or loses by mod order instead of being ignored; the helmet no longer takes the Head slot, so a head-slot item can be worn with it; and the CBBE 3BA and HIMBO body fits (prebuilt meshes and BodySlide output) go into the ESP version's mesh folder, so with this option the armour keeps its vanilla-body fit.</description>
+							<files><folder source="02 Plugin - SkyPatcher" destination="" priority="1" /></files>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+
 		<installStep name="The cuirass">
 			<optionalFileGroups order="Explicit">
 				<group name="Fur collar" type="SelectExactlyOne">

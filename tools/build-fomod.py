@@ -320,7 +320,29 @@ def main(out_root=None, test=False):
     if not os.path.isfile(main_esl):
         fail("the light plugin is missing - run tools/build-arma-esl.py first, or the worn armour "
              "would keep pointing at vanilla's own meshes")
-    shutil.copy2(main_esl, core)
+    # The plugin is one side of the installer's required "Plugin" choice (the owner, 2026-11-16 02:43: an ESP and a
+    # no-ESP version using SkyPatcher). The other side, "02 Plugin - SkyPatcher", is the repo's skypatcher\ INIs:
+    # the worn meshes are on the vanilla paths already (above), so without the plugin they need only the helmet's
+    # body-slot fix, plus the Ebony Mail and Ryn's Snazzy Last Vigil swaps. Neither folder may hold what the other does.
+    esp_dir = os.path.join(out_root, "01 Plugin - ESP")
+    os.makedirs(esp_dir, exist_ok=True)
+    shutil.copy2(main_esl, esp_dir)
+    sp_src = os.path.join(REPO, "skypatcher")
+    sp_dir = os.path.join(out_root, "02 Plugin - SkyPatcher", "SKSE", "Plugins", "SkyPatcher")
+    n_sp = 0
+    for dp, _, fs in os.walk(sp_src):
+        for f in fs:
+            if not f.lower().endswith(".ini"):
+                fail("skypatcher\\ holds '%s' - only .ini files go there" % f)
+            d = os.path.join(sp_dir, os.path.relpath(os.path.join(dp, f), sp_src))
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            shutil.copy2(os.path.join(dp, f), d)
+            n_sp += 1
+    if not os.path.isfile(os.path.join(sp_dir, "armor", "TrulyNordicEbony", "TrulyNordicEbony.ini")):
+        fail("the no-ESP option has no helmet slot fix - the open helm would show an invisible head")
+    for dp, _, fs in os.walk(os.path.join(out_root, "02 Plugin - SkyPatcher")):
+        if any(f.lower().endswith((".esp", ".esm", ".esl")) for f in fs):
+            fail("the no-ESP option holds a plugin")
 
     # ---- body option: CBBE 3BA BodySlide files (Xonek, Nexus 111209); see tools/loy-refits.py. Built before the
     # textures, because its shape data names the same materials and is converted to TruePBR with the rest.
@@ -398,7 +420,7 @@ def main(out_root=None, test=False):
     print("  version ............... %s" % ver)
     print("  meshes on vanilla paths %d, plus %d for the collarless cuirass" % (n_core, n_nofur))
     print("  mirrored under ours ... %d" % n_ours)
-    print("  light plugin .......... %s" % os.path.basename(main_esl))
+    print("  light plugin .......... %s (option 01; option 02 is %d SkyPatcher INIs)" % (os.path.basename(main_esl), n_sp))
     print("  built weapon meshes ... %d (mace, warhammer, bow, arrow + quiver, flight, 1st-person copies)" % n_built)
     print("  TruePBR ............... %d materials, %d shaders in %d meshes converted, %d verified" % (len(mats), n_shaders, n_files, n_ok))
     print("  textures, 2K only ..... %d (largest %d px), under textures\\pbr\\%s" % (found, biggest, PBR_FOLDER))
