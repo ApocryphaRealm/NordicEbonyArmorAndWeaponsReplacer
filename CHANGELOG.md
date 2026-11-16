@@ -1,6 +1,6 @@
 # Changelog - Nordic Ebony Armor and Weapons Replacer
 
-## 1.1.0 - 2026-11-14 - untested
+## 1.1.0 - 2026-11-14 - working
 
 ### Added
 - Installer pictures for every option that installs a model, and a header showing the whole set (tools/installer-images.py renders them from the built package).
@@ -21,7 +21,7 @@
 - The vanilla ebony mace's belt hook (Scb) is not carried over - no Wolf piece forms a hook; the mace hangs at the hip like the war axe.
 
 ### Known
-- Untested in game: the quiver on the back (which side faces out), the bow draw and the six quiver arrows disappearing as arrows are used.
+- The Truly Nordic Carved Weapons Replacer's "Ebony Replacer" option replaces the same vanilla ebony weapon files: use one or the other for the vanilla ebony weapons. Its Standalone and Additional Weapons options sit beside this mod.
 
 ### Fixed
 - Build (tools/missing_weapons/build_stage.py): a shape over the 65535 triangles a game mesh can index now stops the build; before, the export wrapped silently and scrambled the shape's faces.
