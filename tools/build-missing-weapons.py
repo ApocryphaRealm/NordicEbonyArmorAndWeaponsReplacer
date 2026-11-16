@@ -5,7 +5,7 @@ Wolf weapons, at the vanilla paths under meshes\weapons\ebony\.
 
 WHERE THE ART COMES FROM
     Every piece is cut from NordwarUA's own Wolf ebony weapons (Legacy of Ysgramor, Nexus 109963 - modification and
-    asset use allowed with credit) and keeps its own UVs on the Wolf set's Xtudo-black atlases, which this mod already
+    asset use allowed with credit) and keeps its own UVs on the Wolf set's own atlases (our TruePBR black recolour), which this mod already
     ships. No new texture. The approved designs (2026-11-14) are tools/missing_weapons/build_designs.py,
     build_round2.py and build_v1face.py. The repository carries no Legacy of Ysgramor art and no Bethesda art:
       * Legacy of Ysgramor's weapon meshes are read out of its Nexus download at build time (as build-fomod.py does);

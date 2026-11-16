@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-r"""Build the HIMBO and CBBE 3BA body options for a mod made from NordwarUA's Legacy of Ysgramor art.
+r"""Build the CBBE 3BA body option for a mod made from NordwarUA's Legacy of Ysgramor art (the HIMBO option was
+dropped on 2026-11-15 - see main(); the text below describes how both were built).
 
 The owner, 2026-09-17: "see if you can include himbo and cbbe files for these 2 as they are nordwarua
 mods". Two refits of Legacy of Ysgramor exist on Nexus and both cover the steel ("Normal") and the
@@ -215,32 +216,21 @@ def main():
     ap.add_argument("--first", type=int, default=30, help="number of the first option folder")
     a = ap.parse_args()
     prof = PROFILES[a.profile]
-    for k, v in ARCHIVES.items():
-        if not os.path.isfile(os.path.join(a.refits, v)):
-            fail("missing %s in %s" % (v, a.refits))
+    # SINCE 2026-11-15 (the owner, 21:42/21:54): only the CBBE 3BA files ship. Trexasle's HIMBO Conversion asks for his
+    # permission for asset use, so it is not packaged - the mod page points at it instead. Xonek's 3BA page says its
+    # permissions are "the same as in original mod" (NordwarUA's: asset use and modification with credit), which the
+    # owner took as permission granted. The HIMBO functions above stay for the record; main() no longer calls them.
+    v = ARCHIVES["3ba"]
+    if not os.path.isfile(os.path.join(a.refits, v)):
+        fail("missing %s in %s" % (v, a.refits))
     tmp = tempfile.mkdtemp(prefix="loy-refits-")
     try:
-        himbo = os.path.join(tmp, "himbo"); tba = os.path.join(tmp, "3ba")
-        extract(os.path.join(a.refits, ARCHIVES["himbo"]), himbo)
+        tba = os.path.join(tmp, "3ba")
         extract(os.path.join(a.refits, ARCHIVES["3ba"]), tba)
-        d1 = os.path.join(a.out, "%02d HIMBO meshes" % a.first)
-        d2 = os.path.join(a.out, "%02d BodySlide - HIMBO" % (a.first + 1))
-        d3 = os.path.join(a.out, "%02d BodySlide - CBBE 3BA" % (a.first + 2))
-        for d in (d1, d2, d3):
-            if os.path.isdir(d):
-                shutil.rmtree(d)
-        n1 = build_himbo_meshes(prof, himbo, d1)
-        n2 = build_bodyslide(prof, himbo, d2, "himbo")
+        d3 = os.path.join(a.out, "%02d BodySlide - CBBE 3BA" % a.first)
+        if os.path.isdir(d3):
+            shutil.rmtree(d3)
         n3 = build_bodyslide(prof, tba, d3, "3ba")
-        if prof.get("nofur"):
-            d4 = os.path.join(a.out, "%02d HIMBO meshes - no fur collar" % (a.first + 3))
-            if os.path.isdir(d4):
-                shutil.rmtree(d4)
-            sub = dict(prof); sub["pieces"] = prof["nofur"]
-            n4 = build_himbo_meshes(sub, himbo, d4)
-            print("  HIMBO no-fur cuirass .. %d files -> %s" % (n4, os.path.basename(d4)))
-        print("  HIMBO meshes .......... %d files -> %s" % (n1, os.path.basename(d1)))
-        print("  BodySlide HIMBO ....... %d slider sets -> %s" % (n2, os.path.basename(d2)))
         print("  BodySlide CBBE 3BA .... %d slider sets -> %s" % (n3, os.path.basename(d3)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

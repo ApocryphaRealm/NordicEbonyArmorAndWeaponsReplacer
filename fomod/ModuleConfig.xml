@@ -4,7 +4,7 @@
 	<moduleName>Nordic Ebony Armor and Weapons Replacer</moduleName>
 	<moduleImage path="fomod\images\header.png" showImage="true" showFade="true" height="-1" />
 
-	<!-- Meshes, the light plugin and Xtudo's 2K textures (2K only since 1.1.0): the same whatever you pick below.
+	<!-- Meshes, the light plugin and the TruePBR textures (our black recolour of NordwarUA's own maps, 2K): the same whatever you pick below.
 	     The ebony mace, warhammer, bow, arrows and quiver are built from the Wolf weapons' own pieces. -->
 	<requiredInstallFiles>
 		<folder source="00 Core" destination="" priority="0" />
@@ -16,7 +16,7 @@
 				<group name="Fur collar" type="SelectExactlyOne">
 					<plugins order="Explicit">
 						<plugin name="With the fur collar">
-							<description>The cuirass as NordwarUA built it, with the fur mantle across the shoulders - black, from Xtudo's Full Collar Black.</description>
+							<description>The cuirass as NordwarUA built it, with the fur mantle across the shoulders - in black, recoloured from his own fur.</description>
 							<image path="fomod\images\fur.png" />
 							<files />
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
@@ -36,28 +36,10 @@
 			<optionalFileGroups order="Explicit">
 				<group name="Body support" type="SelectAny">
 					<plugins order="Explicit">
-						<plugin name="HIMBO - prebuilt male meshes">
-							<description>The cuirass, boots, gauntlets, helmet and first-person arms refitted to HIMBO (zeroed sliders, so OBody and its kind work out of the box), from Trexasle's Legacy of Ysgramor - HIMBO Conversion. Overrides the male meshes. Pick the collarless cuirass below as well if you chose it on the previous page.</description>
-							<image path="fomod\images\himbo.png" />
-							<files><folder source="30 HIMBO meshes" destination="" priority="4" /></files>
-							<typeDescriptor><type name="Optional" /></typeDescriptor>
-						</plugin>
-						<plugin name="HIMBO - collarless cuirass">
-							<description>The HIMBO cuirass without the fur collar. Only with the option above, and only if you chose "Without the fur collar".</description>
-							<image path="fomod\images\himbo_nofur.png" />
-							<files><folder source="33 HIMBO meshes - no fur collar" destination="" priority="5" /></files>
-							<typeDescriptor><type name="Optional" /></typeDescriptor>
-						</plugin>
-						<plugin name="HIMBO - BodySlide files">
-							<description>Slider sets and shape data to build the male set to your own HIMBO preset in BodySlide, under the group "Nordic Ebony - HIMBO"; the collared and collarless cuirass are separate sets that build to the same file.</description>
-							<image path="fomod\images\himbo.png" />
-							<files><folder source="31 BodySlide - HIMBO" destination="" priority="4" /></files>
-							<typeDescriptor><type name="Optional" /></typeDescriptor>
-						</plugin>
 						<plugin name="CBBE 3BA - BodySlide files">
-							<description>Slider sets and shape data to build the female set to your CBBE 3BA preset in BodySlide (no physics), from Xonek's Legacy of Ysgramor - 3BA Bodyslide, under the group "Nordic Ebony - CBBE 3BA". Nothing is prebuilt: build them once in BodySlide.</description>
+							<description>Slider sets and shape data to build the female set to your CBBE 3BA preset in BodySlide (no physics), from Xonek's Legacy of Ysgramor - 3BA Bodyslide (permissions as Legacy of Ysgramor's), under the group "Nordic Ebony - CBBE 3BA". Nothing is prebuilt: build them once in BodySlide.</description>
 							<image path="fomod\images\cbbe3ba.png" />
-							<files><folder source="32 BodySlide - CBBE 3BA" destination="" priority="4" /></files>
+							<files><folder source="30 BodySlide - CBBE 3BA" destination="" priority="4" /></files>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
 					</plugins>

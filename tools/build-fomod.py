@@ -3,8 +3,11 @@ r"""Assemble the FOMOD installer for Nordic Ebony Armor and Weapons Replacer.
 
 WHAT THIS PACKAGES
     NordwarUA's wolf EBONY armour and weapons from Legacy of Ysgramor (Nexus 109963), moved onto
-    the vanilla ebony mesh paths so they replace the game's ebony gear, in Xtudo's all-black
-    colourway from Nexus 111121 (Ebony Black + Full Collar Black).
+    the vanilla ebony mesh paths so they replace the game's ebony gear, in an all-black look of our
+    own: NordwarUA's ORIGINAL diffuses recoloured by tools/recolour_black.py (the owner, 2026-11-15
+    21:54 - Xtudo's black colourway needs his permission, so none of his files is read or shipped),
+    and since 1.1.0 as Community Shaders TRUEPBR materials (the owner 21:55; tools/truepbr.py):
+    albedo + his normal + RMAOS under textures\pbr\NordicEbony\.
 
     The armour's worn models go through the light plugin's four ADDON overrides (build-arma-esl.py);
     the weapons are loose meshes at the vanilla paths. The four ebony weapons Legacy of Ysgramor has
@@ -14,8 +17,12 @@ WHAT THIS PACKAGES
     four out of the levelled lists and recipes, was retired in 1.1.0 before it was ever posted - build-hide-esp.py and
     verify-hide-esp.py stay in git history.)
 
-    TEXTURES AT 2K ONLY (the owner, 2026-11-14): Xtudo's 2K downloads, installed with the core; the
-    build refuses any shipped DDS larger than 2048.
+    TEXTURES AT 2K ONLY (the owner, 2026-11-14): NordwarUA ships one resolution (2K, some 1K), made
+    into PBR maps at that size and installed with the core; the build refuses any DDS larger than 2048.
+
+    BODY OPTIONS: only the CBBE 3BA BodySlide files (Xonek, 111209 - "the same as in original mod",
+    the owner 21:54: permission granted). The HIMBO conversion (Trexasle, 110002) is not shipped;
+    the page points at it.
 
 WHY IT READS ARCHIVES INSTEAD OF SHIPPING FILES
     None of the art is ours. The repository carries none of it: this script opens the Nexus
@@ -87,16 +94,14 @@ DOWNLOADS = os.environ.get("EWA_DOWNLOADS") or _mo2_downloads()
 SEVENZIP = [r"C:\Program Files\7-Zip\7z.exe", r"C:\Program Files (x86)\7-Zip\7z.exe", "7z"]
 
 # Source archives, by a fragment of their Nexus file name.
-A_BASE = "Main Archive SE-109963"                      # NordwarUA - meshes, normals, masks
+A_BASE = "Main Archive SE-109963"                      # NordwarUA - meshes, diffuses, normals, masks
 A_FURFIX = "Patch Fur Lighting Bug-109963"             # NordwarUA - corrected FurCollar_n
-A_COLLAR = "Color - Full Collar Black-111121"          # Xtudo - the black fur collar
-A_EBONY = {"2K": "Color - Ebony Black 2K-111121"}      # Xtudo - the black ebony diffuses (2K only, 2026-11-14)
-A_WOLF = {"2K": "Color - Wolf Black 2K-111121"}        # for Axe1H.dds - see AXE_NOTE below
 MAX_DDS = 2048                                         # the owner: "in 2K and not 4K"
+PBR_FOLDER = "NordicEbony"                             # textures\pbr\NordicEbony\
+OLD_TEX = ("textures\\nordwar\\companions\\",)          # the set's classic texture folder (converted away)
 
-# The ebony war axe's haft uses the STEEL axe diffuse, so an "all black" ebony set needs one file
-# out of the Wolf Black download as well. Found by reading the mesh, not by guessing.
-AXE_NOTE = "textures\\nordwar\\companions\\axe1h.dds"
+# The ebony war axe's haft uses the STEEL axe diffuse (Axe1H), so it is recoloured and made PBR along
+# with the ebony atlases. Found by reading the mesh, not by guessing.
 
 SRC = "meshes/NordWar/Companions"
 
@@ -140,7 +145,7 @@ MAP_WEAPONS = {
 VANILLA_TEXTURES = ("textures\\blood\\", "textures\\cubemaps\\eyecubemap.dds")
 
 TEXPAT = re.compile(rb"[Tt]extures.{1,180}?\.dds")
-IMAGES = ("header.png", "fur.png", "nofur.png", "himbo.png", "himbo_nofur.png", "cbbe3ba.png")   # tools/installer-images.py
+IMAGES = ("header.png", "fur.png", "nofur.png", "cbbe3ba.png")   # tools/installer-images.py
 
 
 def fail(msg):
@@ -238,9 +243,6 @@ def main(out_root=None, test=False):
 
     base = extract(A_BASE, os.path.join(work, "base"))
     furfix = extract(A_FURFIX, os.path.join(work, "furfix"))
-    collar = extract(A_COLLAR, os.path.join(work, "collar"))
-    ebony = {k: extract(v, os.path.join(work, "ebony" + k)) for k, v in A_EBONY.items()}
-    wolf = {k: extract(v, os.path.join(work, "wolf" + k)) for k, v in A_WOLF.items()}
 
     # ---- meshes, onto the vanilla paths
     core = os.path.join(out_root, "00 Core")
@@ -304,48 +306,42 @@ def main(out_root=None, test=False):
              "would keep pointing at vanilla's own meshes")
     shutil.copy2(main_esl, core)
 
-    # ---- textures, derived from the meshes rather than listed by hand
-    wanted = set()
-    for s in shipped:
-        for m in TEXPAT.findall(open(s, "rb").read()):
-            p = m.decode("latin-1").replace("/", "\\").lower()
-            if not any(p.startswith(v) or p == v for v in VANILLA_TEXTURES):
-                wanted.add(p)
-
-    # Which of them the colour downloads replace, and which come from the base mod as-is.
-    def sources_for(res):
-        """Search order matters: the colour packs win over the base mod's own textures."""
-        return [collar, ebony[res], wolf[res], furfix, base]
-
-    # 2K only, installed with the core (the owner, 2026-11-14)
-    res = "2K"; found = 0; biggest = 0
-    for rel in sorted(wanted):
-        src = None
-        for root in sources_for(res):
-            src = ci_find(root, rel)
-            if src:
-                break
-        if src is None:
-            fail("a shipped mesh asks for '%s' and no source archive has it - in game that "
-                 "shape renders purple" % rel)
-        hdr = open(src, "rb").read(20)
-        h, w = struct.unpack_from("<II", hdr, 12)
-        if hdr[:4] != b"DDS " or max(w, h) > MAX_DDS:
-            fail("'%s' is %dx%d - this mod ships 2K textures only" % (rel, w, h))
-        biggest = max(biggest, w, h)
-        d = os.path.join(core, rel.replace("\\", os.sep))
-        os.makedirs(os.path.dirname(d), exist_ok=True)
-        shutil.copy2(src, d)
-        found += 1
-
-    # ---- body options: HIMBO (prebuilt male meshes + BodySlide) and CBBE 3BA (BodySlide), from the
-    # two Legacy of Ysgramor refits on Nexus (110002, 111209); see tools/loy-refits.py
+    # ---- body option: CBBE 3BA BodySlide files (Xonek, Nexus 111209); see tools/loy-refits.py. Built before the
+    # textures, because its shape data names the same materials and is converted to TruePBR with the rest.
     r = subprocess.run([sys.executable, os.path.join(HERE, "loy-refits.py"), "--profile", "ebony",
                         "--out", out_root, "--first", "30"], capture_output=True, text=True)
     if r.returncode != 0:
         fail("body options failed:\n" + (r.stdout + r.stderr).strip())
     for line in r.stdout.strip().splitlines():
         print(line)
+
+    # ---- textures: every material the shipped meshes use, found by reading them (never a hand list), made into our
+    # black recolour as TruePBR maps from NordwarUA's own files; then every shader of ours is converted (tools/truepbr.py)
+    import truepbr
+    mesh_roots = [os.path.join(out_root, d) for d in sorted(os.listdir(out_root))
+                  if os.path.isdir(os.path.join(out_root, d)) and d[:2].isdigit()]
+    mats = truepbr.scan(mesh_roots, OLD_TEX)
+    if not mats:
+        fail("no shipped mesh names a texture of the set - the scan is looking in the wrong place")
+
+    def find_src(stem):
+        """NordwarUA's file by name: the Fur Lighting Bug patch's FurCollar_n wins over the main archive's"""
+        for root in (furfix, base):
+            p = ci_find(root, "textures/NordWar/Companions/%s.dds" % stem)
+            if p:
+                return p
+        return None
+    truepbr.build_textures(mats, find_src, "ebony", PBR_FOLDER, core, os.path.join(work, "pbr"))
+    n_files, n_shaders = truepbr.convert(mesh_roots, OLD_TEX, PBR_FOLDER)
+    n_ok = truepbr.verify(mesh_roots, OLD_TEX, PBR_FOLDER, [core])
+    found = 0; biggest = 0
+    for dp, _, fs in os.walk(os.path.join(core, "textures")):
+        for f in fs:
+            hdr = open(os.path.join(dp, f), "rb").read(20)
+            h, w = struct.unpack_from("<II", hdr, 12)
+            if hdr[:4] != b"DDS " or max(w, h) > MAX_DDS:
+                fail("'%s' is %dx%d - this mod ships 2K textures only" % (f, w, h))
+            biggest = max(biggest, w, h); found += 1
 
     # ---- fomod
     fomod = os.path.join(out_root, "fomod")
@@ -388,7 +384,8 @@ def main(out_root=None, test=False):
     print("  mirrored under ours ... %d" % n_ours)
     print("  light plugin .......... %s" % os.path.basename(main_esl))
     print("  built weapon meshes ... %d (mace, warhammer, bow, arrow + quiver, flight, 1st-person copies)" % n_built)
-    print("  textures, 2K only ..... %d (largest %d px)" % (found, biggest))
+    print("  TruePBR ............... %d materials, %d shaders in %d meshes converted, %d verified" % (len(mats), n_shaders, n_files, n_ok))
+    print("  textures, 2K only ..... %d (largest %d px), under textures\\pbr\\%s" % (found, biggest, PBR_FOLDER))
     print("  installer sources ..... %d, every one present" % len(sources))
     print("  files ................. %d" % total)
     return out_root
