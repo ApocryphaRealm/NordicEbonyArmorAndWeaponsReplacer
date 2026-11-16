@@ -10,7 +10,7 @@ import body_fits as bf
 S = sys.argv[1]; os.environ["NSET"] = S
 import sets
 C = sets.get(S)
-title = {"ebony": "Nordic Ebony", "skyforged": "Nordic Skyforged"}[S]   # the BodySlide group names the flat package uses
+title = {"ebony": "Truly Nordic Ebony", "skyforged": "Truly Nordic Skyforged"}[S]   # the BodySlide group names the flat package ships (2026-11-16)
 PLAN = r"D:\Claude output\4. plans\body-fits-20261116"
 out = os.environ.get("FULL3D_BODIES_OUT") or os.path.join(PLAN, "3d-" + S)
 if os.path.isdir(out): shutil.rmtree(out)

@@ -363,3 +363,36 @@ def himbo_project(label, pieces, out_bs, work, bs_program=None):
     ET.indent(sets_el, "    ")
     ET.ElementTree(sets_el).write(os.path.join(ssd, label + ".osp"), encoding="utf-8", xml_declaration=True)
     return names, report
+
+
+# ---------------------------------------------------------------- BodySlide display names (2026-11-16)
+def rename_display(bs_root, old_title, new_title):
+    """The names a player sees in BodySlide - the slider-set names, the group names and members, and the .osp / .xml
+    file names - from "<old_title> - ..." to "<new_title> - ..." (the mods were renamed Truly Nordic, 2026-11-16).
+    Only those strings change: DataFolder, SourceFile, the .osd references and OutputPath / OutputFile stay, so every
+    .nif / .tri / .osd is untouched and built meshes still land where the installers expect. Runs after BodySlide has
+    built the prebuilt meshes (they are built by the old group name). Returns the number of files rewritten."""
+    import re
+    old, new = old_title + " - ", new_title + " - "
+    pat = re.compile(r'(<(?:SliderSet|Group|Member) name=")' + re.escape(old))
+    n = 0
+    for sub, ext in (("SliderSets", ".osp"), ("SliderGroups", ".xml")):
+        d = os.path.join(bs_root, sub)
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.lower().endswith(ext):
+                continue
+            p = os.path.join(d, f)
+            raw = open(p, "rb").read()
+            t = raw.decode("utf-8")
+            t2 = pat.sub(lambda m: m.group(1) + new, t)
+            dst = os.path.join(d, new + f[len(old):]) if f.startswith(old) else p
+            if t2 != t or dst != p:
+                if os.path.exists(dst) and dst != p:
+                    fail("rename_display: %s already exists" % dst)
+                open(dst, "wb").write(t2.encode("utf-8"))
+                if dst != p:
+                    os.remove(p)
+                n += 1
+    return n

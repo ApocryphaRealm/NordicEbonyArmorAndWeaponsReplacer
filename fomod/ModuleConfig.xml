@@ -65,7 +65,7 @@
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
 						</plugin>
 						<plugin name="CBBE 3BA">
-							<description>The female set fitted to CBBE 3BA: meshes prebuilt at 3BA's zeroed sliders (the shape 3BA ships), RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - CBBE 3BA", also listed under CBBE and 3BA) to build it to your own preset. No physics. Fit from Xonek's Legacy of Ysgramor - 3BA Bodyslide, with its slider data shipped in our own files.</description>
+							<description>The female set fitted to CBBE 3BA: meshes prebuilt at 3BA's zeroed sliders (the shape 3BA ships), RaceMenu / OBody morphs included, and the BodySlide project (group "Truly Nordic Ebony - CBBE 3BA", also listed under CBBE and 3BA) to build it to your own preset. No physics. Fit from Xonek's Legacy of Ysgramor - 3BA Bodyslide, with its slider data shipped in our own files.</description>
 							<image path="fomod\images\cbbe3ba.png" />
 							<files />
 							<conditionFlags><flag name="female">3ba</flag></conditionFlags>
@@ -83,7 +83,7 @@
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
 						</plugin>
 						<plugin name="HIMBO">
-							<description>The male set fitted to HIMBO by us (HIMBO's own Vanilla-to-HIMBO conversion, then every HIMBO slider conformed onto the armour): meshes prebuilt with the "HIMBO Default" preset, RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - HIMBO", also listed under HIMBO) to build it to your own preset.</description>
+							<description>The male set fitted to HIMBO by us (HIMBO's own Vanilla-to-HIMBO conversion, then every HIMBO slider conformed onto the armour): meshes prebuilt with the "HIMBO Default" preset, RaceMenu / OBody morphs included, and the BodySlide project (group "Truly Nordic Ebony - HIMBO", also listed under HIMBO) to build it to your own preset.</description>
 							<image path="fomod\images\himbo.png" />
 							<files />
 							<conditionFlags><flag name="male">himbo</flag></conditionFlags>

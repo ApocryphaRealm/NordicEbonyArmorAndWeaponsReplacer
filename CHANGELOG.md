@@ -19,7 +19,8 @@ light plugin).
   sliders, plus the BodySlide project to build your own preset, slider data in our own files) and HIMBO for the male
   set (HIMBO's own Vanilla-to-HIMBO conversion with every HIMBO slider conformed onto the armour, meshes prebuilt with
   "HIMBO Default", plus the project). Both cover the collarless cuirass too, and the 3D download ships them fitted to
-  the 3D set. Vanilla bodies stay the default. Trexasle's HIMBO conversion is not used.
+  the 3D set. Vanilla bodies stay the default. Trexasle's HIMBO conversion is not used. In BodySlide the
+  projects are the groups "Truly Nordic Ebony - CBBE 3BA" and "Truly Nordic Ebony - HIMBO".
 - Installer choice of ESP version (recommended) or No ESP - SkyPatcher. The no-ESP option ships no plugin: the worn
   meshes sit on vanilla's own ebony paths and a SkyPatcher INI gives the helmet the open-helm body slots, so the head is
   not hidden (needs SkyPatcher, Nexus 106659). With it, another mod replacing the vanilla ebony armour meshes wins or

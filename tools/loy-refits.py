@@ -48,7 +48,8 @@ TEX_RE = re.compile(rb"textures[\\/]NordWar[\\/]Companions[\\/]", re.IGNORECASE)
 # mesh folder uses. HIMBO prebuilt meshes are <loy>M_0/_1.nif; 3BA shape data is per piece.
 PROFILES = {
     "skyforged": {
-        "title": "Nordic Skyforged",
+        "title": "Nordic Skyforged",          # the shape-data folder names (kept: built meshes and paths unchanged)
+        "display": "Truly Nordic Skyforged",  # the set and group names BodySlide shows (2026-11-16)
         "mesh_dir": "meshes\\NordicSkyforge\\armor",
         "new_tex": b"textures\\NordicSkyforge\\Set\\",
         "pieces": {  # loy base -> ours base (male/female suffix kept)
@@ -60,6 +61,7 @@ PROFILES = {
     },
     "ebony": {
         "title": "Nordic Ebony",
+        "display": "Truly Nordic Ebony",
         "mesh_dir": "meshes\\NordicEbony",
         "new_tex": None,  # the ebony replacer keeps LoY's texture folder (its textures ship there)
         "pieces": {
@@ -309,6 +311,11 @@ def main():
                         if not f.lower().startswith("cuirass"):
                             os.remove(os.path.join(dp, f))
                 print("  %-22s cuirass only -> %s" % (OPT_NAMES[key], os.path.basename(tgt)))
+        # the names BodySlide shows -> the Truly Nordic names, now that every prebuilt mesh is built (bf.rename_display)
+        for key in ("3ba_bs", "3ba_bs_nofur", "himbo_bs", "himbo_bs_nofur"):
+            d = os.path.join(opt_dir(a.out, a.first, key), "CalienteTools", "BodySlide")
+            if os.path.isdir(d):
+                bf.rename_display(d, prof["title"], prof["display"])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return 0
