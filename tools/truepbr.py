@@ -36,6 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import niflib  # noqa: E402
 import recolour_black as RB  # noqa: E402
+import chainmail  # noqa: E402
 
 TEMPLATE = open(os.path.join(HERE, "data", "truepbr_plain_shader.bin"), "rb").read()
 TEXCONV_CANDIDATES = [os.environ.get("TEXCONV", ""), r"D:\Modlists\Njordlinger\tools\Skyking Toolkit\runtime\texconv.exe",
@@ -136,6 +137,19 @@ def build_textures(mats, find_src, kind, folder, out_root, work, report=print):
             if m.shape != rgb.shape[:2]:
                 m = np.asarray(Image.fromarray(np.round(m * 255).astype(np.uint8)).resize(rgb.shape[1::-1], Image.BILINEAR), np.float32) / 255
         alb, rm, rec = RB.pbr_maps(rgb, m, d, kind)
+        # chain-link material on the helmet aventail and the cuirass mail (the owner, 2026-11-15: option 1, material only)
+        ca = chainmail.atlas_of(d) if kind == "ebony" else None
+        if ca:
+            if m is None:
+                fail("chainmail: %s has no _m mask to find the mail in" % d)
+            np_ = find_src(nm)
+            if np_ is None:
+                fail("NordwarUA's download has no %s.dds" % nm)
+            N = RB.load(np_)[..., :3]
+            if N.shape[:2] != rgb.shape[:2]:
+                N = np.asarray(Image.fromarray(np.round(N * 255).astype(np.uint8)).resize(rgb.shape[1::-1], Image.BILINEAR), np.float32) / 255
+            alb, rm, cstats = chainmail.apply(ca, alb, rm, m, N)
+            report("  chainmail %-9s %s" % (d, cstats))
         a = np.concatenate([alb, rgba[..., 3:4]], -1)     # his alpha (the fur's cut-out) kept
         RB.save_png(os.path.join(work, d + ".png"), a, "RGBA")
         RB.save_png(os.path.join(work, d + "_rmaos.png"), rm, "RGBA")
