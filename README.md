@@ -10,7 +10,9 @@ pieces of NordwarUA's own Wolf weapons, since Legacy of Ysgramor has none of tho
   Cubemaps feature is recommended).
 * A light plugin (ESPFE) overrides the four vanilla ebony armour addon records; the weapons are loose meshes at the
   vanilla paths, with first-person models.
-* Installer choices: the fur-collared or collarless cuirass; CBBE 3BA BodySlide files.
+* Installer choices: the fur-collared or collarless cuirass; CBBE 3BA BodySlide files; and optional compatibility
+  patches that need SkyPatcher (`skypatcher\`): Ryn's Snazzy Last Vigil's Ebony Warrior set (his Vitreous Ebony set
+  is left alone) and the Ebony Mail, in this look.
 
 ## Requirements
 

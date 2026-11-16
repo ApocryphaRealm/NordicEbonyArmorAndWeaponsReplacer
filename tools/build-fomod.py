@@ -325,26 +325,41 @@ def main(out_root=None, test=False):
     # The plugin is one side of the installer's required "Plugin" choice (the owner, 2026-11-16 02:43: an ESP and a
     # no-ESP version using SkyPatcher). The other side, "02 Plugin - SkyPatcher", is the repo's skypatcher\ INIs:
     # the worn meshes are on the vanilla paths already (above), so without the plugin they need only the helmet's
-    # body-slot fix, plus the Ebony Mail and Ryn's Snazzy Last Vigil swaps. Neither folder may hold what the other does.
+    # body-slot fix. Neither folder may hold what the other does.
+    # The Ebony Mail and Ryn's Snazzy Last Vigil swaps are NOT part of either: they are the optional "Compatibility
+    # patches (requires SkyPatcher)" step (the owner, 2026-11-16 04:10), one folder per checkbox, and work with both.
     esp_dir = os.path.join(out_root, "01 Plugin - ESP")
     os.makedirs(esp_dir, exist_ok=True)
     shutil.copy2(main_esl, esp_dir)
     sp_src = os.path.join(REPO, "skypatcher")
-    sp_dir = os.path.join(out_root, "02 Plugin - SkyPatcher", "SKSE", "Plugins", "SkyPatcher")
+    sp_rel = os.path.join("SKSE", "Plugins", "SkyPatcher", "armor", "TrulyNordicEbony")
+    # repo INI -> the installer folder it ships in (every INI in skypatcher\ must be listed here)
+    sp_folders = {
+        "TrulyNordicEbony.ini": "02 Plugin - SkyPatcher",
+        "Ryn's Snazzy Last Vigil - Ebony Warrior Overhaul.esp.ini": "20 Patch - Ryn's Snazzy Last Vigil",
+        "EbonyMail.ini": "21 Patch - Ebony Mail",
+    }
     n_sp = 0
     for dp, _, fs in os.walk(sp_src):
         for f in fs:
             if not f.lower().endswith(".ini"):
                 fail("skypatcher\\ holds '%s' - only .ini files go there" % f)
-            d = os.path.join(sp_dir, os.path.relpath(os.path.join(dp, f), sp_src))
+            if f not in sp_folders or os.path.normcase(dp) != os.path.normcase(os.path.join(sp_src, "armor", "TrulyNordicEbony")):
+                fail("skypatcher\\ holds '%s', which no installer option ships - add it to sp_folders" % f)
+            d = os.path.join(out_root, sp_folders[f], sp_rel, f)
             os.makedirs(os.path.dirname(d), exist_ok=True)
             shutil.copy2(os.path.join(dp, f), d)
             n_sp += 1
-    if not os.path.isfile(os.path.join(sp_dir, "armor", "TrulyNordicEbony", "TrulyNordicEbony.ini")):
-        fail("the no-ESP option has no helmet slot fix - the open helm would show an invisible head")
-    for dp, _, fs in os.walk(os.path.join(out_root, "02 Plugin - SkyPatcher")):
-        if any(f.lower().endswith((".esp", ".esm", ".esl")) for f in fs):
-            fail("the no-ESP option holds a plugin")
+    if n_sp != len(sp_folders):
+        fail("skypatcher\\ is missing an INI an installer option ships (%d of %d)" % (n_sp, len(sp_folders)))
+    ryn = open(os.path.join(sp_src, "armor", "TrulyNordicEbony", "Ryn's Snazzy Last Vigil - Ebony Warrior Overhaul.esp.ini"),
+               encoding="utf-8").read()
+    if re.search(r"\|0008(1[6-9A-Fa-f])", "\n".join(l for l in ryn.splitlines() if not l.lstrip().startswith(";"))):
+        fail("the Ryn's Snazzy Last Vigil patch names a Vitreous Ebony record (816-81A) - only the Ebony Warrior's set is patched")
+    for folder in set(sp_folders.values()):
+        for dp, _, fs in os.walk(os.path.join(out_root, folder)):
+            if any(f.lower().endswith((".esp", ".esm", ".esl")) for f in fs):
+                fail("'%s' holds a plugin" % folder)
 
     # ---- body option: CBBE 3BA BodySlide files (Xonek, Nexus 111209); see tools/loy-refits.py. Built before the
     # textures, because its shape data names the same materials and is converted to TruePBR with the rest.
@@ -422,7 +437,7 @@ def main(out_root=None, test=False):
     print("  version ............... %s" % ver)
     print("  meshes on vanilla paths %d, plus %d for the collarless cuirass" % (n_core, n_nofur))
     print("  mirrored under ours ... %d" % n_ours)
-    print("  light plugin .......... %s (option 01; option 02 is %d SkyPatcher INIs)" % (os.path.basename(main_esl), n_sp))
+    print("  light plugin .......... %s (option 01; option 02 and the two compatibility patches are %d SkyPatcher INIs)" % (os.path.basename(main_esl), n_sp))
     print("  built weapon meshes ... %d (mace, warhammer, bow, arrow + quiver, flight, 1st-person copies)" % n_built)
     print("  TruePBR ............... %d materials, %d shaders in %d meshes converted, %d verified" % (len(mats), n_shaders, n_files, n_ok))
     print("  textures, 2K only ..... %d (largest %d px), under textures\\pbr\\%s" % (found, biggest, PBR_FOLDER))

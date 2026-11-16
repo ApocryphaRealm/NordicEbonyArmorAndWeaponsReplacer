@@ -16,12 +16,12 @@
 				<group name="Plugin or SkyPatcher" type="SelectExactlyOne">
 					<plugins order="Explicit">
 						<plugin name="ESP version (recommended)">
-							<description>A light plugin (ESL-flagged, it takes no load-order slot) that points vanilla's four ebony armour addon records at this mod's own mesh folder and gives the helmet the open-helm body slots. Nothing else is needed. Ryn's Snazzy Last Vigil's Ebony Warrior set and the Ebony Mail keep their own look with this option.</description>
+							<description>A light plugin (ESL-flagged, it takes no load-order slot) that points vanilla's four ebony armour addon records at this mod's own mesh folder and gives the helmet the open-helm body slots. Nothing else is needed. The Ebony Mail and Ryn's Snazzy Last Vigil's Ebony Warrior set are optional SkyPatcher patches on the last page.</description>
 							<files><folder source="01 Plugin - ESP" destination="" priority="1" /></files>
 							<typeDescriptor><type name="Recommended" /></typeDescriptor>
 						</plugin>
 						<plugin name="No ESP - SkyPatcher">
-							<description>No plugin at all. REQUIRES SkyPatcher (https://www.nexusmods.com/skyrimspecialedition/mods/106659), which edits records at game start from text files. The armour and weapons show the same look and keep their stats: the worn meshes sit on vanilla's own ebony paths, and SkyPatcher gives the helmet the open-helm body slots so the head is not hidden. With this option SkyPatcher also gives the Ebony Mail and, if Ryn's Snazzy Last Vigil is installed, the Ebony Warrior's and the Vitreous Ebony set this look (Ryn's scimitar stays his). What changes against the ESP version: any other mod that replaces the vanilla ebony armour meshes wins or loses by mod order instead of being ignored; the helmet no longer takes the Head slot, so a head-slot item can be worn with it; and the CBBE 3BA and HIMBO body fits (prebuilt meshes and BodySlide output) go into the ESP version's mesh folder, so with this option the armour keeps its vanilla-body fit.</description>
+							<description>No plugin at all. REQUIRES SkyPatcher (https://www.nexusmods.com/skyrimspecialedition/mods/106659), which edits records at game start from text files. The armour and weapons show the same look and keep their stats: the worn meshes sit on vanilla's own ebony paths, and SkyPatcher gives the helmet the open-helm body slots so the head is not hidden. The Ebony Mail and Ryn's Snazzy Last Vigil's Ebony Warrior set are optional patches on the last page, with either option. What changes against the ESP version: any other mod that replaces the vanilla ebony armour meshes wins or loses by mod order instead of being ignored; the helmet no longer takes the Head slot, so a head-slot item can be worn with it; and the CBBE 3BA and HIMBO body fits (prebuilt meshes and BodySlide output) go into the ESP version's mesh folder, so with this option the armour keeps its vanilla-body fit.</description>
 							<files><folder source="02 Plugin - SkyPatcher" destination="" priority="1" /></files>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
@@ -84,6 +84,38 @@
 							<description>The male set fitted to HIMBO by us (HIMBO's own Vanilla-to-HIMBO conversion, then every HIMBO slider conformed onto the armour): meshes prebuilt with the "HIMBO Default" preset, RaceMenu / OBody morphs included, and the BodySlide project (group "Nordic Ebony - HIMBO", also listed under HIMBO) to build it to your own preset.</description>
 							<files />
 							<conditionFlags><flag name="male">himbo</flag></conditionFlags>
+							<typeDescriptor><type name="Optional" /></typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
+			</optionalFileGroups>
+		</installStep>
+
+		<installStep name="Compatibility patches (requires SkyPatcher)">
+			<optionalFileGroups order="Explicit">
+				<group name="SkyPatcher patches for other armour" type="SelectAny">
+					<plugins order="Explicit">
+						<plugin name="Ryn's Snazzy Last Vigil - Ebony Warrior set">
+							<description>For Ryn's Snazzy Last Vigil - Ebony Warrior Overhaul. Puts the Ebony Warrior's own armour (boots, cuirass, gauntlets, helmet, shield) in this mod's look. Ryn's names, stats and enchantments stay his, his scimitar stays his, and his craftable Vitreous Ebony set is left as he made it. Ticked for you when Ryn's plugin is installed; it does nothing without it. Requires SkyPatcher: https://www.nexusmods.com/skyrimspecialedition/mods/106659</description>
+							<files><folder source="20 Patch - Ryn's Snazzy Last Vigil" destination="" priority="6" /></files>
+							<typeDescriptor>
+								<dependencyType>
+									<defaultType name="Optional" />
+									<patterns>
+										<pattern>
+											<dependencies operator="Or">
+												<fileDependency file="Ryn's Snazzy Last Vigil - Ebony Warrior Overhaul.esp" state="Active" />
+												<fileDependency file="Ryn's Snazzy Last Vigil - Ebony Warrior Overhaul.esp" state="Inactive" />
+											</dependencies>
+											<type name="Recommended" />
+										</pattern>
+									</patterns>
+								</dependencyType>
+							</typeDescriptor>
+						</plugin>
+						<plugin name="Ebony Mail in this look">
+							<description>Gives the Ebony Mail, Boethiah's artifact, this mod's ebony cuirass look; its name, stats and enchantment stay vanilla. Requires SkyPatcher: https://www.nexusmods.com/skyrimspecialedition/mods/106659</description>
+							<files><folder source="21 Patch - Ebony Mail" destination="" priority="6" /></files>
 							<typeDescriptor><type name="Optional" /></typeDescriptor>
 						</plugin>
 					</plugins>

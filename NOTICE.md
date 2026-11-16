@@ -67,7 +67,10 @@ so the set is complete and that plugin is retired.
 ## What is deliberately NOT replaced
 
 Ebony Mail, the Ebony Blade and the ebony dragon priest masks are distinct artifacts with their own meshes. They are
-left alone.
+left alone - except that an optional SkyPatcher patch in the installer (off by default) gives the Ebony Mail the ebony
+cuirass's look. A second optional patch does the same for the Ebony Warrior's own set from Ryn's Snazzy Last Vigil
+(Nexus 76385, by Ryn and Gutmaw): it names his records only, ships none of his files, and leaves his Vitreous Ebony
+set alone.
 
 ## Permissions, read per shipped source
 
