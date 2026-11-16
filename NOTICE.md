@@ -38,6 +38,10 @@ player's `Skyrim - Meshes0/1.bsa` - so no Bethesda mesh is in the repository eit
 **Xonek**: the CBBE 3BA slider sets and shape data, installed as an optional choice, renamed and repathed to this mod's
 folders by `tools/loy-refits.py`, their materials made TruePBR like the rest. Credited to Xonek and to NordwarUA.
 
+## Our own body fits - CBBE 3BA and HIMBO (2026-11-16)
+
+The installer's Body step offers, beside the vanilla bodies (the default), CBBE 3BA for women and HIMBO for men: meshes prebuilt by BodySlide (3BA "- Zeroed Sliders -", "HIMBO Default"), RaceMenu / OBody morphs, and the BodySlide projects for your own preset. The 3BA sets are Xonek's (above) with their slider data now shipped in our own files. The HIMBO fit is ours: NordwarUA's male meshes moved by HIMBO's own "Vanilla to HIMBO" conversion set and given every slider of HIMBO's "Refit: HIMBO Vanilla" reference (Outfit Studio's convert and conform, run by our tools). Credit: HIMBO by Kreiste and Novelyst (Gaztec, Trivutron); CBBE 3BA by Acro; BodySlide and Outfit Studio by ousnius and Caliente.
+
 ## Not included - the HIMBO conversion
 
 [Nexus 110002](https://www.nexusmods.com/skyrimspecialedition/mods/110002), **Legacy of Ysgramor - HIMBO Conversion**
@@ -74,6 +78,8 @@ permission" is not shipped until a written permission is recorded here.
 |---|---|---|---|---|
 | Legacy of Ysgramor - Main Archive SE, Patch Fur Lighting Bug | 109963 | NordwarUA | Permissions read 2026-11-12, again 2026-11-15: modification allowed with credit; asset use allowed with credit; conversion allowed with credit; no upload to other sites; no use in sold mods; donation points allowed | Yes - meshes, textures (recoloured), derived weapons |
 | Legacy of Ysgramor - 3BA Bodyslide | 111209 | Xonek | Permissions read 2026-11-15: author's instructions "The same as in original mod" (no separate permission lines); file credits NordwarUA; not opted into donation points. The owner (2026-11-15 21:54): "consider it as permission granted" - so under Legacy of Ysgramor's terms, with credit | Yes - optional CBBE 3BA BodySlide files |
+| HIMBO - Highly Improved Male Body Overhaul | 46311 | Kreiste and Novelyst | Permissions read 2026-11-16 (author's instructions): body mesh and undies licensed CC-BY-SA-4.0; refits and original armour using the HIMBO body allowed with credit if the files are free | Not shipped - its conversion and reference shapes (read from the instance at build time) drive OUR HIMBO fit; the fitted armour meshes and slider data derived from them ship |
+| CBBE 3BA (3BBB) | 30174 | Acro | Permissions read 2026-11-16: modification allowed with credit; asset use allowed without asking, with credit; no use in sold mods; author's notes: everything but the body meshes allowed if not for sale, body meshes too unless vertex order/count is changed | Not shipped - its zeroed body is the target the prebuilt female meshes are built for |
 | Legacy of Ysgramor - HIMBO Conversion | 110002 | Trexasle | Permissions read 2026-11-15: asset use needs his permission; some assets belong to other authors | **No** - not read by the build, not shipped; the page points at it |
 | Legacy of Ysgramor - My patches and fixes (Ebony Black, Wolf Black, Full Collar Black) | 111121 | Xtudo | Permissions read 2026-11-15: modification and asset use need his permission; no donation points on mods using his assets | **No** - not read by the build, not shipped (up to the unposted 1.1.0 builds of 2026-11-15 his black diffuses were used; replaced by our own recolour of NordwarUA's originals) |
 
