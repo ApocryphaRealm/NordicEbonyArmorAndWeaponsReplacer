@@ -6,13 +6,13 @@ remade here from NordwarUA's ORIGINAL diffuses, whose permissions allow modifica
 input or a target: the recolour is a hue/saturation-masked procedure tuned only by overall numbers measured on 2026-11-15
 (4. plans\nordic-carved-missing-weapons-20261115\xtudo-diff\xtudo-vs-nordwarua.tsv): the black look leaves grey steel
 alone and turns the warm red/brown regions (cloth, tabard, leather straps, hafts, shield planks) and the fur to black-grey,
-at about 0.7x their luminance (the fur lifted by a curve, luminance ** 0.6, to a black-grey with its strands); the shield's blue painted panels go the same way.
+at about 0.7x their luminance (the fur by a contrast curve about its own median: black, with its strands); the shield's blue painted panels go the same way.
 
 THE RECOLOUR (recolour())
     * warm  = hue within about -25..38 degrees, saturation above ~0.2      -> black-grey at luminance x GAIN
     * gold  = (ebony atlases only) hue 24..52, bright, saturated and shiny  -> KEPT: the ebony set's gold knotwork
     * blue  = (shield atlases only) hue 200..265, saturated                -> black-grey as well
-    * fur   = the fur collar atlas, all of it                              -> black-grey at luminance ** FUR_GAMMA
+    * fur   = the fur collar atlas, all of it                              -> black: FUR_MID + (L - FUR_PIVOT) x FUR_CONTRAST (below / above)
     Grey (unsaturated) texels - the steel, the ebony plate - are never touched. Every mask is soft, so edges stay clean.
 
 THE TRUEPBR MAPS (pbr_maps(), the owner 21:55 "make the whole armor and weapon set in PBR with cube maps")
@@ -33,7 +33,12 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter
 
 GAIN = 0.70        # warm regions' luminance factor (measured: the black look keeps ~0.5-0.8x, mean ~0.7)
-FUR_GAMMA = 0.60   # the fur collar: luminance ** 0.6 (his visible fur median ~21 -> ~55/255, strands kept); 2026-11-15
+# the fur collar (the owner, 2026-11-16 00:34: "it does need to be black", after median ~53 read grey in game): a linear
+# contrast curve about his fur's own visible median - darker mid-tones, the strands spread wider (std kept >= 15/255)
+FUR_PIVOT = 20.6 / 255   # NordwarUA's FurCollar.dds, visible texels (alpha >= 128): median luminance
+FUR_MID = 31.0 / 255     # where that median lands (~30 after the de-light step)
+FUR_CONTRAST = (1.35, 2.4)   # the slope below / above it (the de-light step compresses the bright strands, so the upper
+                             # slope is steeper): shipped visible fur ~ median 30, p10 16, p90 53, std 15
 RESIDUAL = 0.06    # the share of the original hue left in the black-grey (keeps leather from turning flat neutral)
 METAL_BASE = {"steel": (0.58, 0.58, 0.60), "ebony": (0.27, 0.27, 0.29)}   # sRGB metal colour per set
 
@@ -86,10 +91,11 @@ def recolour(rgb, name, envmask=None):
     w, gold, fur = masks(rgb, name, envmask)
     L = _luma(rgb)[..., None]
     if fur:
-        # the fur: NordwarUA's own fur is already dark (visible median ~21/255), so a flat gain left a flat black
-        # silhouette in game (median 10, max 33 - the owner, 2026-11-15). A curve on HIS luminance lifts it to a
-        # black-grey with the strand contrast kept (median ~55); the alpha channel is never touched here.
-        target = np.power(np.clip(L, 0, 1), FUR_GAMMA) + (rgb - L) * RESIDUAL
+        # the fur: NordwarUA's own fur is already dark (visible median ~21/255). A flat x0.5 gain left a flat black
+        # silhouette (median 10, max 33); a ** 0.6 curve read grey in game (median 53). A linear contrast about his
+        # median keeps it black (median ~30) with the strands spread (std ~15); neutral; alpha never touched here.
+        d = L - FUR_PIVOT
+        target = np.clip(FUR_MID + np.where(d < 0, d * FUR_CONTRAST[0], d * FUR_CONTRAST[1]), 0, 1) + (rgb - L) * RESIDUAL
     else:
         target = L * GAIN + (rgb - L) * RESIDUAL
     out = rgb * (1 - w[..., None]) + np.clip(target, 0, 1) * w[..., None]
